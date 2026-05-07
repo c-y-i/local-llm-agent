@@ -42,12 +42,12 @@ models/*
 *.zst
 
 # Ollama / llama.cpp generated state if stored inside the repo
-ollama/
-Ollama/
-llama-cpp/
-blobs/
-manifests/
-modelfiles/
+/ollama/
+/Ollama/
+/llama-cpp/
+/blobs/
+/manifests/
+/modelfiles/
 
 # Logs, crashes, caches, temporary files
 *.log
