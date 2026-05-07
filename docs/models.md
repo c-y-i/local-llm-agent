@@ -75,6 +75,24 @@ This repo may use local file names that differ from Ollama tags:
 
 Set Cline's Context Window Size to the value printed by the wrapper or `llama-cline.service`.
 
+## Claude Code Compatibility
+
+Claude Code sends a `thinking` parameter with every request. Ollama only
+supports this for **qwen3** models. All other families return an error and
+will not work.
+
+| Model | Works with Claude Code | Notes |
+|---|---|---|
+| `qwen3` | Yes | Only family that supports thinking via Ollama |
+| `qwen2.5-coder` | No | Does not support thinking |
+| `llama3.2` | No | Does not support thinking |
+| `phi4-mini` | No | Does not support thinking |
+| `deepseek-r1` | No | Reasoning models also emit `<think>` tags which break parsing |
+| `hermes3` | No | Does not support thinking |
+
+For 4GB VRAM cards, `qwen3:4b` is the recommended Claude Code model.
+See [`claude-code.md`](claude-code.md) for full setup.
+
 ## Tool Use
 
 Cline and other agent loops need models/templates that can follow tool-call instructions reliably. If a model repeatedly emits malformed XML tool calls, use the guardrails in `.clinerules` and [`cline.md`](cline.md), or switch to a more code/tool-tuned model.

@@ -10,6 +10,37 @@ Claude Code CLI → LiteLLM proxy (port 4000) → Ollama (port 11434)
 
 All three must be running when using local models.
 
+## Critical: Thinking Param Constraint
+
+Claude Code sends a `thinking` parameter with every request (extended
+thinking). Ollama only supports this for **qwen3** models. Every other model
+family (llama, phi, qwen2.5, deepseek, hermes, etc.) will return:
+
+```
+"<model>" does not support thinking
+```
+
+**Only qwen3 models work with Claude Code via this setup.**
+
+For 4GB VRAM, `qwen3:4b` is the recommended model. It fits fully on GPU
+and supports thinking natively.
+
+## Critical: GPU Memory Conflict
+
+The llama-cline service holds ~3.3GB VRAM. Stop it before using Claude Code
+with Ollama or the model will fail to load:
+
+```bash
+sudo systemctl stop llama-cline
+```
+
+To go back to Cline after using Claude Code locally:
+
+```bash
+sudo systemctl stop litellm-proxy
+sudo systemctl start llama-cline
+```
+
 ## Prerequisites
 
 LiteLLM is installed in a local venv:
@@ -29,24 +60,28 @@ Install the systemd service once:
 
 ## Start Services
 
+**Stop llama-cline first to free VRAM:**
+
+```bash
+sudo systemctl stop llama-cline
+```
+
 **Ollama:**
 
 ```bash
 ./scripts/ollama/serve.sh
 ```
 
-**LiteLLM proxy (systemd):**
+**LiteLLM proxy:**
 
 ```bash
 sudo systemctl start litellm-proxy
-# or use the shell shortcut:
-litellm-start
 ```
 
 **Claude Code:**
 
 ```bash
-claude-local --model qwen2.5-coder:7b
+claude-local --model qwen3:4b
 ```
 
 **Service controls:**
@@ -62,14 +97,6 @@ journalctl -u litellm-proxy -f
 Add to `~/.bashrc`:
 
 ```bash
-LITELLM_BIN="/media/data/LLM/.local/venv/bin/litellm"
-LITELLM_CONFIG="/media/data/LLM/.local/litellm_config.yaml"
-
-function litellm-start() {
-  $LITELLM_BIN --config $LITELLM_CONFIG --port 4000 &
-  echo "LiteLLM proxy started on port 4000 (PID $!)"
-}
-
 function claude-local() {
   ANTHROPIC_BASE_URL=http://localhost:4000 \
   ANTHROPIC_AUTH_TOKEN=ollama \
@@ -89,34 +116,44 @@ Reload:
 source ~/.bashrc
 ```
 
+## Recommended Models
+
+Only qwen3 models support Claude Code's thinking param.
+
+| Model | VRAM | Notes |
+|---|---|---|
+| `qwen3:4b` | 2.5 GB | Best fit for 4–6 GB VRAM cards |
+| `qwen3:8b` | ~5 GB | Better capability, needs 8 GB VRAM |
+| `qwen3:1.7b` | 1.4 GB | Fits anywhere but too small for reliable tool use |
+
+## LiteLLM Config Notes
+
+qwen3 models require `merge_reasoning_content_in_choices: true` in
+`.local/litellm_config.yaml`, otherwise Claude Code receives the thinking
+block but empty response text. Example:
+
+```yaml
+  - model_name: qwen3:4b
+    litellm_params:
+      model: ollama/qwen3:4b
+      api_base: http://localhost:11434
+      merge_reasoning_content_in_choices: true
+```
+
+When adding a new qwen3 model, always include this flag.
+
 ## Switch Back To Claude Cloud
 
 ```bash
 claude-cloud
 ```
 
-Or manually:
-
-```bash
-unset ANTHROPIC_BASE_URL
-unset ANTHROPIC_AUTH_TOKEN
-claude
-```
-
-## Recommended Models
-
-| Model | Use case |
-|---|---|
-| `qwen2.5-coder:7b` | Best local option for agentic coding tasks |
-| `deepseek-r1:7b` | Reasoning-heavy tasks |
-| `qwen3:4b` | Lighter alternative when GPU memory is tight |
-
 ## Verify
 
-Check LiteLLM proxy is up and can see the model:
+Check LiteLLM proxy is up:
 
 ```bash
-curl -s http://localhost:4000/v1/models | python3 -m json.tool | grep model_name
+curl -s http://localhost:4000/health
 ```
 
 Quick chat test:
@@ -124,16 +161,14 @@ Quick chat test:
 ```bash
 ANTHROPIC_BASE_URL=http://localhost:4000 \
 ANTHROPIC_AUTH_TOKEN=ollama \
-claude --model qwen2.5-coder:7b -p "Reply with exactly: ready"
+claude --model qwen3:4b -p "Reply with exactly: ready"
 ```
-
-Expected output: `ready`.
 
 ## Notes
 
 - Local models handle simple edits and Q&A well. Complex multi-step agentic
-  tasks (tool chains, file editing loops) are hit-or-miss — smaller models
-  don't always follow Claude Code's tool-calling schema reliably.
+  tasks are hit-or-miss — smaller models don't always follow Claude Code's
+  tool-calling schema reliably.
 - LiteLLM translates the API format but cannot compensate for model capability
   gaps vs actual Claude.
 - For Cline-specific setup, see [`cline.md`](cline.md).
@@ -143,8 +178,9 @@ Expected output: `ready`.
 
 | Symptom | Fix |
 |---|---|
-| `Connection refused` on port 4000 | LiteLLM proxy is not running — run `litellm-start`. |
-| `Connection refused` on port 11434 | Ollama is not running — run `./scripts/ollama/serve.sh`. |
-| Model not found error | Check model name matches an entry in `.local/litellm_config.yaml`. |
-| Tool call failures / garbled output | Expected with smaller models. Try `qwen2.5-coder:7b` or switch to `claude-cloud`. |
-| CUDA allocation failure | Stop other GPU processes (`sudo systemctl stop llama-cline`), or use a smaller model. |
+| `Connection refused` on port 4000 | LiteLLM not running — `sudo systemctl start litellm-proxy` |
+| `Connection refused` on port 11434 | Ollama not running — `./scripts/ollama/serve.sh` |
+| `does not support thinking` | Wrong model — switch to a `qwen3` model |
+| `cudaMalloc failed: out of memory` | Stop llama-cline — `sudo systemctl stop llama-cline` |
+| Model not found | Add model to `.local/litellm_config.yaml` and restart proxy |
+| Tool call failures / garbled output | Model too small. Use `qwen3:4b` or switch to `claude-cloud` |
