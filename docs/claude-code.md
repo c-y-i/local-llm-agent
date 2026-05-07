@@ -1,29 +1,32 @@
 # Claude Code With Ollama
 
 Claude Code is Anthropic's CLI coding agent. It speaks Anthropic's Messages
-API format, which Ollama does not implement directly. A LiteLLM proxy sits
-between them and translates the formats.
+API format, which Ollama does not implement directly. This repo uses a small
+local Anthropic-compatible proxy between Claude Code and Ollama.
 
 ```
-Claude Code CLI → LiteLLM proxy (port 4000) → Ollama (port 11434)
+Claude Code CLI -> anthropic-proxy (port 4000) -> Ollama (port 11434)
 ```
 
 All three must be running when using local models.
 
-## Critical: Thinking Param Constraint
+## Critical: Thinking Param Handling
 
 Claude Code sends a `thinking` parameter with every request (extended
-thinking). Ollama only supports this for **qwen3** models. Every other model
-family (llama, phi, qwen2.5, deepseek, hermes, etc.) will return:
+thinking). Ollama's OpenAI-compatible endpoint and LiteLLM can mishandle that
+for local models:
 
 ```
 "<model>" does not support thinking
 ```
 
-**Only qwen3 models work with Claude Code via this setup.**
+or a LiteLLM validation error for `thinking_blocks.*.signature`.
 
-For 4GB VRAM, `qwen3:4b` is the recommended model. It fits fully on GPU
-and supports thinking natively.
+Use `scripts/ollama/anthropic-proxy.py` on port 4000. It drops Claude Code's
+Anthropic-only thinking parameter before forwarding requests to Ollama. For
+Qwen3 models, it also injects `/no_think` and strips leaked `<think>` text from
+responses. Qwen3 can still spend the whole response budget on hidden
+reasoning, so prefer `qwen2.5-coder:3b` for Claude Code on this machine.
 
 ## Critical: GPU Memory Conflict
 
@@ -43,19 +46,22 @@ sudo systemctl start llama-cline
 
 ## Prerequisites
 
-LiteLLM is installed in a local venv:
+The proxy script is:
 
 ```bash
-/media/data/LLM/.local/venv/bin/litellm --version
+/media/data/LLM/scripts/ollama/anthropic-proxy.py
 ```
 
-Config file is at `.local/litellm_config.yaml`. It lists all installed Ollama
-models. Update it whenever you add or remove models.
+Proxy internals, including the optional filesystem intent router, are documented
+in [`claude-proxy.md`](claude-proxy.md).
+
+`.local/litellm_config.yaml` is kept for older LiteLLM experiments, but it is
+not the recommended Claude Code path.
 
 Install the systemd service once:
 
 ```bash
-./scripts/ollama/install-litellm-service.sh
+./scripts/ollama/install-claude-proxy-service.sh
 ```
 
 ## Start Services
@@ -72,7 +78,7 @@ sudo systemctl stop llama-cline
 ./scripts/ollama/serve.sh
 ```
 
-**LiteLLM proxy:**
+**Claude Code proxy:**
 
 ```bash
 sudo systemctl start litellm-proxy
@@ -81,7 +87,7 @@ sudo systemctl start litellm-proxy
 **Claude Code:**
 
 ```bash
-claude-local --model qwen3:4b
+claude-local --model qwen2.5-coder:3b
 ```
 
 **Service controls:**
@@ -98,9 +104,7 @@ Add to `~/.bashrc`:
 
 ```bash
 function claude-local() {
-  ANTHROPIC_BASE_URL=http://localhost:4000 \
-  ANTHROPIC_AUTH_TOKEN=ollama \
-  claude "$@"
+  /media/data/LLM/scripts/ollama/claude-local.sh "$@"
 }
 
 function claude-cloud() {
@@ -118,29 +122,31 @@ source ~/.bashrc
 
 ## Recommended Models
 
-Only qwen3 models support Claude Code's thinking param.
+The proxy path can run non-Qwen3 models because it removes Claude Code's
+Anthropic thinking parameter before forwarding to Ollama.
+
+Running `claude-local` with no arguments opens a local model picker. Models
+currently loaded by Ollama are shown first and marked `RUNNING`; pressing Enter
+selects the first model. If no model is loaded, preferred Claude Code models
+such as `qwen2.5-coder:3b` are listed before the rest. If you pass `--model`,
+the picker is skipped:
+
+```bash
+claude-local                         # pick from installed Ollama models
+claude-local --model qwen2.5-coder:3b # skip picker
+claude-local -p "hi"                 # pick first, then run the prompt
+```
+
+In an interactive terminal, use Up/Down arrows or `j`/`k` to move, Enter to
+select, `q` to quit, or type a model number directly.
 
 | Model | VRAM | Notes |
 |---|---|---|
-| `qwen3:4b` | 2.5 GB | Best fit for 4–6 GB VRAM cards |
-| `qwen3:8b` | ~5 GB | Better capability, needs 8 GB VRAM |
+| `qwen2.5-coder:3b` | 1.9 GB | Fast small coding model; verified through Claude Code |
+| `qwen2.5-coder:7b` | 4.7 GB | Stronger coding model, but may exceed 4 GB VRAM |
+| `qwen3:4b` | 2.5 GB | Starts, but unreliable: can return empty content after reasoning |
+| `llama3.2:3b` | 2.0 GB | General fallback; weaker at tool use |
 | `qwen3:1.7b` | 1.4 GB | Fits anywhere but too small for reliable tool use |
-
-## LiteLLM Config Notes
-
-qwen3 models require `merge_reasoning_content_in_choices: true` in
-`.local/litellm_config.yaml`, otherwise Claude Code receives the thinking
-block but empty response text. Example:
-
-```yaml
-  - model_name: qwen3:4b
-    litellm_params:
-      model: ollama/qwen3:4b
-      api_base: http://localhost:11434
-      merge_reasoning_content_in_choices: true
-```
-
-When adding a new qwen3 model, always include this flag.
 
 ## Switch Back To Claude Cloud
 
@@ -150,7 +156,7 @@ claude-cloud
 
 ## Verify
 
-Check LiteLLM proxy is up:
+Check the Claude Code proxy is up:
 
 ```bash
 curl -s http://localhost:4000/health
@@ -161,7 +167,7 @@ Quick chat test:
 ```bash
 ANTHROPIC_BASE_URL=http://localhost:4000 \
 ANTHROPIC_AUTH_TOKEN=ollama \
-claude --model qwen3:4b -p "Reply with exactly: ready"
+claude --model qwen2.5-coder:3b -p "Reply with exactly: ready"
 ```
 
 ## Notes
@@ -169,8 +175,11 @@ claude --model qwen3:4b -p "Reply with exactly: ready"
 - Local models handle simple edits and Q&A well. Complex multi-step agentic
   tasks are hit-or-miss — smaller models don't always follow Claude Code's
   tool-calling schema reliably.
-- LiteLLM translates the API format but cannot compensate for model capability
-  gaps vs actual Claude.
+- The proxy suppresses common fake tool-call JSON for greetings and placeholder
+  paths. If a local model keeps inventing tools, switch to a stronger model or
+  `claude-cloud`.
+- The proxy translates the API format but cannot compensate for model
+  capability gaps vs actual Claude.
 - For Cline-specific setup, see [`cline.md`](cline.md).
 - For Copilot + Ollama setup, see [`copilot.md`](copilot.md).
 
@@ -178,9 +187,11 @@ claude --model qwen3:4b -p "Reply with exactly: ready"
 
 | Symptom | Fix |
 |---|---|
-| `Connection refused` on port 4000 | LiteLLM not running — `sudo systemctl start litellm-proxy` |
-| `Connection refused` on port 11434 | Ollama not running — `./scripts/ollama/serve.sh` |
-| `does not support thinking` | Wrong model — switch to a `qwen3` model |
+| `Connection refused` on port 4000 | Claude Code proxy not running - `sudo systemctl start litellm-proxy` |
+| `Connection refused` on port 11434 | Ollama not running - `./scripts/ollama/serve.sh` |
+| `does not support thinking` | You are bypassing `anthropic-proxy.py`; make `ANTHROPIC_BASE_URL=http://localhost:4000` |
+| `thinking_blocks.*.signature` | You are using LiteLLM's Anthropic path; use the repo proxy service instead |
+| Empty response from `qwen3:*` | Use `qwen2.5-coder:3b`; Qwen3 can spend the response budget on reasoning |
 | `cudaMalloc failed: out of memory` | Stop llama-cline — `sudo systemctl stop llama-cline` |
-| Model not found | Add model to `.local/litellm_config.yaml` and restart proxy |
-| Tool call failures / garbled output | Model too small. Use `qwen3:4b` or switch to `claude-cloud` |
+| Model not found | Pull it with `ollama pull <model>` and retry |
+| Tool call failures / garbled output | Model too small. Try `qwen2.5-coder:7b` or switch to `claude-cloud` |

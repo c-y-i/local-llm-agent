@@ -86,13 +86,19 @@ When connected, Cline can run against a local Ollama model like this:
 
 If `models/qwen2.5-coder-3b.gguf` exists, the llama.cpp wrapper uses it by default.
 
-Use Claude Code with Ollama via a LiteLLM proxy (Claude Code speaks Anthropic's API format; LiteLLM translates it to Ollama's OpenAI-compatible format):
+Use Claude Code with Ollama via the local Anthropic proxy. Running
+`claude-local` with no arguments opens a model picker; currently loaded Ollama
+models are shown first and marked `RUNNING`:
 
 ```bash
 ./scripts/ollama/serve.sh
 sudo systemctl start litellm-proxy
-claude-local --model qwen2.5-coder:7b
+claude-local
 ```
+
+Model picker screenshot slot:
+
+<img src="docs/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
 
 Use Copilot Chat with Ollama when you want VS Code to use installed Ollama models:
 
@@ -161,7 +167,9 @@ sudo systemctl stop ollama
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama service and API usage |
 | [`docs/cline.md`](docs/cline.md) | Cline integration and troubleshooting |
 | [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI with Ollama |
-| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI with Ollama via LiteLLM |
+| [`docs/claude-local.md`](docs/claude-local.md) | `claude-local` launcher, model picker, and shortcuts |
+| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI with Ollama via local Anthropic proxy |
+| [`docs/claude-proxy.md`](docs/claude-proxy.md) | How the Claude Code proxy works and what its guardrails do |
 | [`docs/context-memory.md`](docs/context-memory.md) | Context windows, KV cache, project rules, and persistent memory |
 | [`docs/models.md`](docs/models.md) | What model families are and what they do |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | Matching hardware tiers to model choices |

@@ -77,21 +77,23 @@ Set Cline's Context Window Size to the value printed by the wrapper or `llama-cl
 
 ## Claude Code Compatibility
 
-Claude Code sends a `thinking` parameter with every request. Ollama only
-supports this for **qwen3** models. All other families return an error and
-will not work.
+Claude Code sends Anthropic Messages requests that Ollama does not implement
+directly. Use `scripts/ollama/anthropic-proxy.py` through `claude-local`; the
+launcher opens a picker when no model is specified and puts currently loaded
+Ollama models first.
 
 | Model | Works with Claude Code | Notes |
 |---|---|---|
-| `qwen3` | Yes | Only family that supports thinking via Ollama |
-| `qwen2.5-coder` | No | Does not support thinking |
-| `llama3.2` | No | Does not support thinking |
-| `phi4-mini` | No | Does not support thinking |
-| `deepseek-r1` | No | Reasoning models also emit `<think>` tags which break parsing |
-| `hermes3` | No | Does not support thinking |
+| `qwen2.5-coder` | Yes, via proxy | Best current local Claude Code default; `qwen2.5-coder:3b` is verified |
+| `llama3.2` | Partial, via proxy | General fallback; weaker at tool use |
+| `phi4-mini` | Partial, via proxy | Compact fallback |
+| `qwen3` | Unreliable | Can spend output budget on reasoning and return empty content |
+| `deepseek-r1` | Poor | Reasoning tags often confuse agent protocols |
+| `hermes3` | Experimental | May emit malformed tool calls |
 
-For 4GB VRAM cards, `qwen3:4b` is the recommended Claude Code model.
-See [`claude-code.md`](claude-code.md) for full setup.
+For 4GB VRAM cards, `qwen2.5-coder:3b` is the recommended Claude Code model.
+Run `claude-local` to pick from installed models. See
+[`claude-code.md`](claude-code.md) for full setup.
 
 ## Tool Use
 

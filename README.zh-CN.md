@@ -86,12 +86,13 @@ sudo systemctl start llama-cline
 
 如果存在 `models/qwen2.5-coder-3b.gguf`，llama.cpp 包装脚本会默认用它。
 
-Claude Code 可以通过 LiteLLM proxy 使用 Ollama（Claude Code 使用 Anthropic API 格式，LiteLLM 会转成 Ollama 的 OpenAI-compatible 格式）：
+Claude Code 可以通过本地 Anthropic proxy 使用 Ollama。直接运行
+`claude-local` 会打开模型选择器；当前 Ollama 已加载的模型会排在最上面并标记为 `RUNNING`：
 
 ```bash
 ./scripts/ollama/serve.sh
 sudo systemctl start litellm-proxy
-claude-local --model qwen2.5-coder:7b
+claude-local
 ```
 
 想让 VS Code 的 Copilot Chat 用本地 Ollama 模型：
@@ -161,6 +162,9 @@ sudo systemctl stop ollama
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama 服务和 API 用法 |
 | [`docs/cline.md`](docs/cline.md) | Cline 集成和故障排查 |
 | [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI 连接 Ollama |
+| [`docs/claude-local.md`](docs/claude-local.md) | `claude-local` 启动器、模型选择器和快捷命令 |
+| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code 通过本地 Anthropic proxy 连接 Ollama |
+| [`docs/claude-proxy.md`](docs/claude-proxy.md) | Claude Code proxy 的工作方式和 guardrail |
 | [`docs/context-memory.md`](docs/context-memory.md) | 上下文窗口、KV cache、项目规则和持久记忆 |
 | [`docs/models.md`](docs/models.md) | 模型家族是什么、适合做什么 |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | 按硬件选择模型 |

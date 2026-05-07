@@ -27,7 +27,8 @@ sed \
   -e "s|@SERVICE_GROUP@|${SERVICE_GROUP}|g" \
   "$UNIT_SRC" > "$TMP_UNIT"
 
-echo "Generated ${UNIT_NAME}:"
+echo "Generated ${UNIT_NAME} for the Claude Code Anthropic proxy:"
+echo "Note: the service name is historical; it runs anthropic-proxy.py, not LiteLLM."
 cat "$TMP_UNIT"
 echo
 
@@ -41,6 +42,7 @@ sudo systemctl daemon-reload
 sudo systemctl disable "$UNIT_NAME" >/dev/null 2>&1 || true
 
 echo "Installed ${UNIT_DST}"
+echo "Proxy internals: ${LOCAL_LLM_AGENT_ROOT}/docs/claude-proxy.md"
 echo
 echo "Manual controls:"
 echo "  sudo systemctl start litellm-proxy"
