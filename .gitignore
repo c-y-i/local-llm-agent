@@ -1,0 +1,83 @@
+# Local environment and machine-specific notes
+.env
+.env.*
+!.env.example
+.local.env
+*.local
+*.local.*
+docs/*.local.md
+.local/
+notes.local.md
+worklog.local.md
+
+# Heavy local model artifacts
+models/*
+!models/.gitkeep
+*.gguf
+*.safetensors
+*.bin
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.tflite
+*.mlmodel
+*.ggml
+*.q4_*
+*.q5_*
+*.q8_*
+*.part
+*.partial
+*.download
+*.aria2
+
+# Archives / large downloads
+*.zip
+*.tar
+*.tar.*
+*.tgz
+*.7z
+*.rar
+*.zst
+
+# Ollama / llama.cpp generated state if stored inside the repo
+ollama/
+Ollama/
+llama-cpp/
+blobs/
+manifests/
+modelfiles/
+
+# Logs, crashes, caches, temporary files
+*.log
+*.pid
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+core
+core.*
+.cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tmp/
+temp/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.example.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Build artifacts
+build/
+dist/
+target/
+out/

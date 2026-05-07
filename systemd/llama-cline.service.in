@@ -1,0 +1,19 @@
+[Unit]
+Description=llama.cpp server for Cline
+Documentation=file:@LOCAL_LLM_AGENT_ROOT@/docs/cline.md
+After=network.target
+Conflicts=ollama.service
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+WorkingDirectory=@LOCAL_LLM_AGENT_ROOT@
+ExecStartPre=/usr/bin/systemctl stop ollama.service
+ExecStart=@LOCAL_LLM_AGENT_ROOT@/scripts/llama-cpp/cline-server.sh
+Restart=no
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

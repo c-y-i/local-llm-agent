@@ -1,0 +1,19 @@
+This workspace is normally used with Cline in Act mode.
+
+When in Act mode:
+- Do not use plan_mode_respond.
+- Do not stop after writing a plan.
+- Use Cline's file and command tools to inspect, edit, test, and verify.
+- If the user names a file, search the workspace for it before asking where it is.
+- Do not use ask_followup_question to ask for file locations, current directory, or information that can be discovered with tools.
+- Only use ask_followup_question when a missing detail blocks the task and cannot be discovered.
+- If ask_followup_question is truly required, include a non-empty question tag:
+  <ask_followup_question>
+  <question>Ask one concise, specific question here.</question>
+  </ask_followup_question>
+- When the task is complete, call attempt_completion with a non-empty result:
+  <attempt_completion>
+  <result>Briefly describe what changed and how it was verified.</result>
+  </attempt_completion>
+
+If a tool schema says a parameter is required, include that parameter with a concrete value.
