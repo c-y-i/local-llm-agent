@@ -1,0 +1,18 @@
+[Unit]
+Description=LiteLLM proxy for Claude Code + Ollama
+Documentation=file:@LOCAL_LLM_AGENT_ROOT@/docs/claude-code.md
+After=network.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+WorkingDirectory=@LOCAL_LLM_AGENT_ROOT@
+ExecStart=@LOCAL_LLM_AGENT_ROOT@/.local/venv/bin/litellm --config @LOCAL_LLM_AGENT_ROOT@/.local/litellm_config.yaml --port 4000
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

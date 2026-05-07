@@ -93,7 +93,15 @@ Use Cline with Ollama when you want Cline to use an installed Ollama model direc
 
 If `models/qwen2.5-coder-3b.gguf` exists, the llama.cpp wrapper uses it by default.
 
-See [`docs/cline.md`](docs/cline.md) for Cline details and [`docs/copilot.md`](docs/copilot.md) for Copilot + Ollama notes.
+Use Claude Code with Ollama via a LiteLLM proxy (Claude Code speaks Anthropic's API format; LiteLLM translates it to Ollama's OpenAI-compatible format):
+
+```bash
+./scripts/ollama/serve.sh
+sudo systemctl start litellm-proxy
+claude-local --model qwen2.5-coder:7b
+```
+
+See [`docs/cline.md`](docs/cline.md) for Cline details, [`docs/copilot.md`](docs/copilot.md) for Copilot + Ollama notes, and [`docs/claude-code.md`](docs/claude-code.md) for Claude Code + Ollama setup.
 
 ## Path Variables
 
@@ -150,6 +158,7 @@ sudo systemctl stop ollama
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama service and API usage |
 | [`docs/cline.md`](docs/cline.md) | Cline integration and troubleshooting |
 | [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI with Ollama |
+| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI with Ollama via LiteLLM |
 | [`docs/context-memory.md`](docs/context-memory.md) | Context windows, KV cache, project rules, and persistent memory |
 | [`docs/models.md`](docs/models.md) | What model families are and what they do |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | Matching hardware tiers to model choices |
