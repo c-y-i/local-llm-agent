@@ -29,7 +29,7 @@
 
 开始之后，可以用 `ollama list` 确认本地模型可见，再用 `ollama run <model>` 在终端里聊天：
 
-![Terminal showing Ollama service status, model list, and an ollama run chat](docs/ollama_service.png)
+<img src="docs/ollama_service.png" alt="Terminal showing Ollama service status, model list, and an ollama run chat" width="720">
 
 如果想装一个手动启动的 `llama-cline` systemd 服务：
 
@@ -46,6 +46,7 @@ sudo systemctl start llama-cline
 |---|---|---|---:|
 | 单板计算机：Raspberry Pi / Orange Pi，8 GB | `llama3.2:1b` | `qwen2.5-coder:0.5b` | 2048 |
 | 二手迷你主机：Intel N100/N305，16 GB | `llama3.2:1b` | `qwen2.5-coder:1.5b` | 4096 |
+| 小显存 Cline GPU：RTX 3050 笔记本，6 GB VRAM | `qwen3:4b` | `gemma4:e4b`, `qwen2.5-coder:3b` | 4096-8192 |
 | 入门 Cline GPU：RTX 3060 12 GB | `qwen3:8b` | `qwen2.5-coder:7b` | 8192-16384 |
 | 较强游戏主机：RTX 4080 / 4080 Super | `mistral-nemo:12b` | `qwen2.5-coder:14b` | 16384-32768 |
 | 高端单 GPU：RTX 4090 / 5090 | `qwen3:30b`, `gpt-oss:20b` | `qwen2.5-coder:32b`, `qwen3-coder:30b` | 32768+ |
@@ -54,18 +55,6 @@ sudo systemctl start llama-cline
 更完整的硬件列表和一些容易踩坑的地方见 [`docs/hardware-matching.md`](docs/hardware-matching.md)。
 
 ## 编辑器 / Agent 示例
-
-想让 VS Code 的 Copilot Chat 用本地 Ollama 模型：
-
-```bash
-./scripts/ollama/serve.sh
-ollama pull qwen2.5-coder:7b
-ollama launch vscode
-```
-
-然后在 VS Code 的 Copilot Chat 模型选择器里选本地 Ollama 模型。手动配置的话，在 Language Models 里添加 Ollama provider，并把要用的模型显示出来。
-
-![VS Code Language Models picker showing Ollama models](docs/copilot_ollama.png)
 
 想直接控制 GGUF 文件和上下文设置，可以让 Cline 连 llama.cpp：
 
@@ -91,9 +80,31 @@ ollama launch vscode
 | Temperature | `0.2` |
 | Max Tokens | `1024` 到 `2048` |
 
+连上之后，Cline 可以像这样使用本地 Ollama 模型：
+
+<img src="docs/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
+
 如果存在 `models/qwen2.5-coder-3b.gguf`，llama.cpp 包装脚本会默认用它。
 
-Cline 细节见 [`docs/cline.md`](docs/cline.md)，Copilot + Ollama 见 [`docs/copilot.md`](docs/copilot.md)。
+Claude Code 可以通过 LiteLLM proxy 使用 Ollama（Claude Code 使用 Anthropic API 格式，LiteLLM 会转成 Ollama 的 OpenAI-compatible 格式）：
+
+```bash
+./scripts/ollama/serve.sh
+sudo systemctl start litellm-proxy
+claude-local --model qwen2.5-coder:7b
+```
+
+想让 VS Code 的 Copilot Chat 用本地 Ollama 模型：
+
+```bash
+./scripts/ollama/serve.sh
+ollama pull qwen2.5-coder:7b
+ollama launch vscode
+```
+
+然后在 VS Code 的 Copilot Chat 模型选择器里选本地 Ollama 模型。手动配置的话，在 Language Models 里添加 Ollama provider，并把要用的模型显示出来。
+
+Cline 细节见 [`docs/cline.md`](docs/cline.md)，Claude Code + Ollama 见 [`docs/claude-code.md`](docs/claude-code.md)，Copilot + Ollama 见 [`docs/copilot.md`](docs/copilot.md)。
 
 ## 路径变量
 

@@ -29,7 +29,7 @@ You can override every path with environment variables.
 
 After quick start, `ollama list` should show local models and `ollama run <model>` should open a terminal chat:
 
-![Terminal showing Ollama service status, model list, and an ollama run chat](docs/ollama_service.png)
+<img src="docs/ollama_service.png" alt="Terminal showing Ollama service status, model list, and an ollama run chat" width="720">
 
 For a manual `llama-cline` systemd service:
 
@@ -46,6 +46,7 @@ sudo systemctl start llama-cline
 |---|---|---|---:|
 | Single Board Computer: Raspberry Pi / Orange Pi, 8 GB | `llama3.2:1b` | `qwen2.5-coder:0.5b` | 2048 |
 | Used mini PC: Intel N100/N305, 16 GB | `llama3.2:1b` | `qwen2.5-coder:1.5b` | 4096 |
+| Small Cline GPU: RTX 3050 laptop, 6 GB VRAM | `qwen3:4b` | `gemma4:e4b`, `qwen2.5-coder:3b` | 4096-8192 |
 | Budget Cline GPU: RTX 3060 12 GB | `qwen3:8b` | `qwen2.5-coder:7b` | 8192-16384 |
 | Strong gaming PC: RTX 4080 / 4080 Super | `mistral-nemo:12b` | `qwen2.5-coder:14b` | 16384-32768 |
 | High-end single GPU: RTX 4090 / 5090 | `qwen3:30b`, `gpt-oss:20b` | `qwen2.5-coder:32b`, `qwen3-coder:30b` | 32768+ |
@@ -54,18 +55,6 @@ sudo systemctl start llama-cline
 See [`docs/hardware-matching.md`](docs/hardware-matching.md) for the full hardware list and the little traps worth knowing about.
 
 ## Editor / Agent Examples
-
-Use Copilot Chat with Ollama when you want VS Code to use installed Ollama models:
-
-```bash
-./scripts/ollama/serve.sh
-ollama pull qwen2.5-coder:7b
-ollama launch vscode
-```
-
-In VS Code Copilot Chat, select a local Ollama model from the model picker. If you configure it manually, add Ollama as a language model provider and make sure the local model is visible.
-
-![VS Code Language Models picker showing Ollama models](docs/copilot_ollama.png)
 
 Use Cline with llama.cpp when you want direct control over GGUF files and context settings:
 
@@ -91,6 +80,10 @@ Use Cline with Ollama when you want Cline to use an installed Ollama model direc
 | Temperature | `0.2` |
 | Max Tokens | `1024` to `2048` |
 
+When connected, Cline can run against a local Ollama model like this:
+
+<img src="docs/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
+
 If `models/qwen2.5-coder-3b.gguf` exists, the llama.cpp wrapper uses it by default.
 
 Use Claude Code with Ollama via a LiteLLM proxy (Claude Code speaks Anthropic's API format; LiteLLM translates it to Ollama's OpenAI-compatible format):
@@ -101,7 +94,17 @@ sudo systemctl start litellm-proxy
 claude-local --model qwen2.5-coder:7b
 ```
 
-See [`docs/cline.md`](docs/cline.md) for Cline details, [`docs/copilot.md`](docs/copilot.md) for Copilot + Ollama notes, and [`docs/claude-code.md`](docs/claude-code.md) for Claude Code + Ollama setup.
+Use Copilot Chat with Ollama when you want VS Code to use installed Ollama models:
+
+```bash
+./scripts/ollama/serve.sh
+ollama pull qwen2.5-coder:7b
+ollama launch vscode
+```
+
+In VS Code Copilot Chat, select a local Ollama model from the model picker. If you configure it manually, add Ollama as a language model provider and make sure the local model is visible.
+
+See [`docs/cline.md`](docs/cline.md) for Cline details, [`docs/claude-code.md`](docs/claude-code.md) for Claude Code + Ollama setup, and [`docs/copilot.md`](docs/copilot.md) for Copilot + Ollama notes.
 
 ## Path Variables
 

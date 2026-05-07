@@ -68,6 +68,10 @@ Then configure Cline:
 
 If your Cline build uses OpenAI-compatible settings for Ollama, use `http://127.0.0.1:11434/v1` as the Base URL and `114514` as the API key.
 
+When Cline is connected to Ollama, the chat panel should show the local model and run tasks normally:
+
+![Cline running with a local Ollama model](cline_demo.png)
+
 ## Model Context Defaults
 
 The wrapper chooses conservative defaults because KV-cache size varies by model and GPU.

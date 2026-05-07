@@ -40,7 +40,7 @@ Prefer official or well-maintained model pages, recent quantizations, clear lice
 | `granite-code` | Coding | IBM code model family, useful for code intelligence experiments. |
 | `llama3.2` | General chat | Small Llama family, useful for general chat and simple local tasks. |
 | `qwen3` | General / reasoning | Broad dense and MoE Qwen family; some tags may emit thinking text. |
-| `gemma3` / `gemma4` | General / multimodal / agent | Modern Gemma families with text, tool, and multimodal-oriented tags. |
+| `gemma3` / `gemma4` | General / multimodal / agent | Modern Gemma families with text, tool, and multimodal-oriented tags. `gemma4:e4b` is a tested Ollama pick for Cline/Ollama agent work on an RTX 3050 laptop with 6 GB VRAM. |
 | `mistral` / `mistral-nemo` / `mistral-small` | General / tool | Mistral family for chat, tools, and larger-context experiments. |
 | `phi4-mini` | General / tool | Compact instruction-following model; useful as a terse fallback. |
 | `deepseek-r1` | Reasoning | Strong reasoning family; usually better for solo reasoning than Cline tool loops. |

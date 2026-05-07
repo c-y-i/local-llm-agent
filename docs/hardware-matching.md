@@ -22,6 +22,7 @@ Start here if you just want a reasonable first pull for a common machine.
 |---|---|---|---:|---|
 | Single Board Computer: Raspberry Pi 5 / Orange Pi, 8 GB | `llama3.2:1b` | `qwen2.5-coder:0.5b` | 2048 | Small enough to be usable on shared RAM. |
 | Used mini PC: Intel N100/N305, 16 GB | `llama3.2:1b` | `qwen2.5-coder:1.5b` | 4096 | Practical always-on local helper without GPU offload. |
+| Small Cline GPU: RTX 3050 laptop, 6 GB VRAM | `qwen3:4b` | `gemma4:e4b`, `qwen2.5-coder:3b` | 4096-8192 | User-tested as effective for local agent work on 6 GB laptop VRAM. |
 | Budget Cline GPU: RTX 3060 12 GB | `qwen3:8b` | `qwen2.5-coder:7b` | 8192-16384 | 12 GB VRAM is a sweet spot for cheap local agents. |
 | Strong gaming PC: RTX 4080 / 4080 Super | `mistral-nemo:12b` | `qwen2.5-coder:14b` | 16384-32768 | Enough VRAM for stronger coder models and useful context. |
 | High-end single GPU: RTX 4090 / 5090 | `qwen3:30b`, `gpt-oss:20b` | `qwen2.5-coder:32b`, `qwen3-coder:30b` | 32768+ | Good target for larger agentic models. |
@@ -39,6 +40,7 @@ These are practical starting points, not promises. Laptop GPUs, board RAM option
 | Used Intel N100/N305 mini PC, 16 GB | CPU RAM, no useful discrete VRAM | `qwen2.5-coder:1.5b`, `llama3.2:1b` | Limited | Nice always-on local box. Good for Ollama chat, small helpers, and demos. |
 | Used office desktop, 32 GB RAM, no GPU | CPU RAM | `qwen2.5-coder:3b`, `qwen3:4b` | Limited to fair | Better for one-shot coding than full agent loops. Keep expectations sane. |
 | Old gaming laptop, GTX 1650 / 1050 Ti, 4 GB VRAM | Small NVIDIA VRAM | `qwen2.5-coder-3b` with lowered context | Fair if tuned | Stop Ollama before llama.cpp. Try `N_CTX=8192` first if allocation fails. |
+| RTX 3050 laptop, 6 GB VRAM | 6 GB VRAM | `gemma4:e4b`, `qwen2.5-coder:3b`, `qwen3:4b` | Good if context is controlled | `gemma4:e4b` is user-tested as effective for Cline/Ollama local agent work on this laptop VRAM tier. Start around `4096` to `8192` context. |
 | RTX 3060 12 GB desktop | 12 GB VRAM | `qwen2.5-coder:7b` or a 7B coder GGUF Q4 | Good | A strong budget Cline box. 12 GB VRAM is much nicer than 8 GB for KV cache. |
 | RTX 4060 Ti 16 GB desktop | 16 GB VRAM | `qwen2.5-coder:7b`, `gemma3:12b` | Good | The extra VRAM often matters more than raw GPU speed for local agents. |
 | RTX 4070 / 5070 12 GB desktop | 12 GB VRAM | `qwen2.5-coder:7b`, `qwen3:8b` | Good | Fast, but 12 GB still needs context discipline. Treat 14B models as experiments. |
