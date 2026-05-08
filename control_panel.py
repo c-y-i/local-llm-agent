@@ -376,12 +376,7 @@ h1{font-size:28px;line-height:1.15;font-weight:720;color:#fff;letter-spacing:0}
 }
 .mode.on{border-color:rgba(54,215,131,.35);background:rgba(54,215,131,.1);color:var(--green)}
 .mode.info{border-color:rgba(101,183,255,.35);background:rgba(101,183,255,.08);color:var(--blue)}
-.grid{
-  display:grid;
-  grid-template-columns:minmax(340px,.95fr) minmax(280px,1fr) minmax(280px,1fr);
-  gap:16px;
-  margin-bottom:16px;
-}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
 .card{
   background:#0f1113;
   border:1px solid rgba(255,255,255,.07);
@@ -498,14 +493,16 @@ meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
   </div>
   <span class="header-right"><span id="mode" class="mode">—</span><span id="ts">—</span></span>
 </header>
-<div id="action" class="action-status"></div>
+<div id="setup-banner" class="setup-banner"></div>
 <div class="grid">
   <section class="card"><h2>Services</h2><div id="svc"><span class="na">loading...</span></div></section>
   <section class="card"><h2>GPU</h2><div id="gpu"><span class="na">loading...</span></div></section>
   <section class="card"><h2>System</h2><div id="sys"><span class="na">loading...</span></div></section>
+  <section class="card"><h2>Storage</h2><div id="sto"><span class="na">loading...</span></div></section>
 </div>
-<section class="card models-card"><h2>Models</h2><div id="mdl"><span class="na">loading...</span></div></section>
+<section class="card"><h2>Models</h2><div id="mdl"><span class="na">loading...</span></div></section>
 </div>
+<div id="toast"></div>
 <script>
 const SVCS={"ollama":"ollama","llama-cline":"llama-cline","litellm-proxy":"litellm-proxy"};
 const PORTS={"anthropic-proxy":"anthropic-proxy :4000","stable-diffusion":"stable-diffusion :7860"};
