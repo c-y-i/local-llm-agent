@@ -590,8 +590,8 @@ function renderStorage(d){
     if(!entry.available)continue;
     const used=(entry.used_bytes/1e9).toFixed(1),total=(entry.total_bytes/1e9).toFixed(1);
     const pct=entry.used_bytes/entry.total_bytes;
-    const warn=pct>0.85?" class=\"warn\"":" ";
-    h+=`<div class="metric-block"><div class="metric-label"><span>${esc(label)}</span><span class="metric-value">${used} / ${total} GB</span></div><meter${warn}value="${entry.used_bytes}" min="0" max="${entry.total_bytes}"></meter></div>`;
+    const warn=pct>0.85?" class=\"warn\" ":"";
+    h+=`<div class="metric-block"><div class="metric-label"><span>${esc(label)}</span><span class="metric-value">${used} / ${total} GB</span></div><meter ${warn}value="${entry.used_bytes}" min="0" max="${entry.total_bytes}"></meter></div>`;
   }
   document.getElementById("sto").innerHTML=h||'<span class="na">unavailable</span>';
 }
@@ -604,7 +604,7 @@ function renderMdl(d){
       h+='<div class="setup-step"><span class="step-now">2</span>No models pulled &mdash; pull one to get started</div>';
       h+='<div class="suggested-models">';
       for(const m of SUGGESTED){
-        h+=`<div class="mdl-row"><span class="mono">${esc(m.name)}</span><span class="sz">${esc(m.size)} &middot; ${esc(m.desc)}</span><button class="btn-primary" onclick="pullModel(this,'${esc(m.name)}')">Pull</button></div>`;
+        h+=`<div class="mdl-row"><span class="mono">${esc(m.name)}</span><span class="sz">${esc(m.size)} &middot; ${esc(m.desc)}</span><button class="btn-primary" onclick="pullModel(this,decodeURIComponent('${encodeURIComponent(m.name)}'))">Pull</button></div>`;
       }
       h+='</div>';
       document.getElementById("mdl").innerHTML=h;
