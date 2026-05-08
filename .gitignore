@@ -81,3 +81,5 @@ build/
 dist/
 target/
 out/
+.superpowers/
+docs/superpowers/
