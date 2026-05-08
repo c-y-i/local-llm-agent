@@ -113,5 +113,40 @@ class TestGetOllama(unittest.TestCase):
         self.assertEqual(result["running"], [])
 
 
+class TestGetSystem(unittest.TestCase):
+    MEMINFO = (
+        "MemTotal:       16384000 kB\n"
+        "MemFree:         4096000 kB\n"
+        "MemAvailable:    8192000 kB\n"
+        "Buffers:          512000 kB\n"
+    )
+    # two /proc/stat reads: second has more total/idle ticks → ~25% CPU
+    STAT_1 = "cpu  100 0 50 250 10 0 0 0 0 0\n"
+    STAT_2 = "cpu  125 0 75 350 15 0 0 0 0 0\n"  # Δtotal=165, Δidle=105 → idle%=63.6 → cpu%=36.4
+
+    @patch("monitor.time.sleep")
+    @patch("builtins.open")
+    def test_ram_and_cpu(self, mock_open, mock_sleep):
+        mock_open.side_effect = [
+            unittest.mock.mock_open(read_data=self.MEMINFO)(),
+            unittest.mock.mock_open(read_data=self.STAT_1)(),
+            unittest.mock.mock_open(read_data=self.STAT_2)(),
+        ]
+        result = monitor.get_system()
+        self.assertTrue(result["ram"]["available"])
+        self.assertEqual(result["ram"]["total_mib"], 16000)   # 16384000 // 1024
+        self.assertEqual(result["ram"]["used_mib"], 8000)     # total - avail = 16000 - 8000
+        self.assertTrue(result["cpu"]["available"])
+        self.assertGreater(result["cpu"]["pct"], 0)
+        self.assertGreater(result["cpu"]["count"], 0)
+
+    @patch("monitor.time.sleep")
+    @patch("builtins.open", side_effect=OSError("no /proc"))
+    def test_proc_unavailable(self, mock_open, mock_sleep):
+        result = monitor.get_system()
+        self.assertFalse(result["ram"]["available"])
+        self.assertFalse(result["cpu"]["available"])
+
+
 if __name__ == "__main__":
     unittest.main()

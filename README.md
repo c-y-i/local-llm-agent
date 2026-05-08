@@ -162,6 +162,21 @@ Large model files are ignored by `.gitignore`. Keep model catalogs and setup not
 
 Ollama can share those files through CAS symlinks under `$OLLAMA_MODELS`. The helper scripts in `scripts/ollama/` handle pulling, importing, relinking, auditing, and removing shared models.
 
+## Monitor
+
+`monitor.py` is a read-only web dashboard that shows service status, GPU stats, CPU/RAM usage, and the full Ollama model list in one page. It uses Python stdlib only and does not touch any config or service.
+
+```bash
+python3 monitor.py
+# Open http://localhost:8765  —  Ctrl+C to stop
+```
+
+Optional port override:
+
+```bash
+MONITOR_PORT=9000 python3 monitor.py
+```
+
 ## Common Commands
 
 ```bash

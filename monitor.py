@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Read-only LLM stack monitor. Run with: python3 monitor.py"""
+"""Read-only local LLM stack monitor. Run with: python3 monitor.py"""
 import json
 import os
 import socket
 import subprocess
+import time
 import urllib.request
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -96,6 +97,44 @@ def get_ollama():
     return {"reachable": True, "models": models, "running": running}
 
 
+def get_system():
+    ram = {"available": False}
+    try:
+        mem = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    mem[k.strip()] = int(v.split()[0])
+        total_mib = mem["MemTotal"] // 1024
+        avail_mib = mem["MemAvailable"] // 1024
+        ram = {"available": True, "total_mib": total_mib, "used_mib": total_mib - avail_mib}
+    except Exception:
+        pass
+
+    cpu = {"available": False}
+    try:
+        def _read_stat():
+            with open("/proc/stat") as f:
+                parts = f.readline().split()
+            vals = [int(x) for x in parts[1:8]]
+            return sum(vals), vals[3] + vals[4]  # total, idle+iowait
+
+        t1, i1 = _read_stat()
+        time.sleep(0.1)
+        t2, i2 = _read_stat()
+        dt = t2 - t1
+        cpu = {
+            "available": True,
+            "pct": round(100.0 * (1 - (i2 - i1) / dt), 1) if dt > 0 else 0.0,
+            "count": os.cpu_count() or 1,
+        }
+    except Exception:
+        pass
+
+    return {"ram": ram, "cpu": cpu}
+
+
 # ---------------------------------------------------------------------------
 # Dashboard HTML — defined here, populated in the HTML template task
 # ---------------------------------------------------------------------------
@@ -106,14 +145,14 @@ DASHBOARD_HTML = """\
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LLM Monitor</title>
+<title>Local LLM Monitor</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;font-size:14px;background:#0f0f0f;color:#e0e0e0;padding:20px}
 h1{font-size:16px;font-weight:600;color:#fff}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 #ts{font-size:12px;color:#666}
-.grid{display:grid;grid-template-columns:220px 1fr;gap:12px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:220px 1fr 1fr;gap:12px;margin-bottom:12px}
 .card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:14px}
 .card h2{font-size:11px;font-weight:600;letter-spacing:.08em;color:#888;text-transform:uppercase;margin-bottom:10px}
 .row{display:flex;align-items:center;gap:8px;padding:3px 0}
@@ -133,10 +172,11 @@ td.right{text-align:right;color:#888}
 </style>
 </head>
 <body>
-<header><h1>LLM Monitor</h1><span id="ts">—</span></header>
+<header><h1>Local LLM Monitor</h1><span id="ts">—</span></header>
 <div class="grid">
   <div class="card"><h2>Services</h2><div id="svc"><span class="na">loading…</span></div></div>
   <div class="card"><h2>GPU</h2><div id="gpu"><span class="na">loading…</span></div></div>
+  <div class="card"><h2>System</h2><div id="sys"><span class="na">loading…</span></div></div>
 </div>
 <div class="card"><h2>Models</h2><div id="mdl"><span class="na">loading…</span></div></div>
 <script>
@@ -155,6 +195,18 @@ function renderGPU(d){
   if(!g?.available){document.getElementById("gpu").innerHTML='<span class="na">unavailable</span>';return;}
   const u=(g.vram_used_mib/1024).toFixed(1),t=(g.vram_total_mib/1024).toFixed(1);
   document.getElementById("gpu").innerHTML=`<div class="gpu-name">${esc(g.name)}</div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter><div class="gpu-stats">VRAM ${u} / ${t} GB &nbsp;·&nbsp; Util ${esc(g.utilization_pct)}% &nbsp;·&nbsp; ${esc(g.temp_c)}°C</div>`;
+}
+function renderSys(d){
+  const s=d.system;
+  let h="";
+  if(s?.ram?.available){
+    const u=(s.ram.used_mib/1024).toFixed(1),t=(s.ram.total_mib/1024).toFixed(1);
+    h+=`<div class="gpu-stats" style="margin-bottom:4px">RAM</div><meter value="${s.ram.used_mib}" min="0" max="${s.ram.total_mib}"></meter><div class="gpu-stats">${u} / ${t} GB used</div>`;
+  }else{h+='<div class="gpu-stats">RAM unavailable</div>';}
+  if(s?.cpu?.available){
+    h+=`<div class="gpu-stats" style="margin-top:10px">CPU &nbsp;${esc(s.cpu.pct)}% &nbsp;·&nbsp; ${esc(s.cpu.count)} cores</div>`;
+  }else{h+='<div class="gpu-stats" style="margin-top:10px">CPU unavailable</div>';}
+  document.getElementById("sys").innerHTML=h;
 }
 function renderMdl(d){
   const o=d.ollama;
@@ -176,7 +228,7 @@ async function poll(){
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
     document.getElementById("ts").textContent="updated "+(d.timestamp?.slice(11,19)??"—");
-    renderSvc(d);renderGPU(d);renderMdl(d);
+    renderSvc(d);renderGPU(d);renderSys(d);renderMdl(d);
   }catch(e){console.error(e);document.getElementById("ts").textContent="fetch failed";}
 }
 poll();setInterval(poll,5000);
@@ -194,6 +246,7 @@ def build_status():
         "services": get_services(),
         "ports": probe_ports(),
         "gpu": get_gpu(),
+        "system": get_system(),
         "ollama": get_ollama(),
     }
 
@@ -237,7 +290,7 @@ class MonitorHandler(BaseHTTPRequestHandler):
 def main():
     port = int(os.environ.get("MONITOR_PORT", "8765"))
     server = ThreadedHTTPServer(("", port), MonitorHandler)
-    print(f"LLM Monitor → http://localhost:{port}  (Ctrl+C to stop)")
+    print(f"Local LLM Monitor → http://localhost:{port}  (Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
