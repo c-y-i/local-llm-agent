@@ -383,13 +383,11 @@ h1{font-size:28px;line-height:1.15;font-weight:720;color:#fff;letter-spacing:0}
   margin-bottom:16px;
 }
 .card{
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:8px;
+  background:#0f1113;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:6px;
   padding:18px;
-  min-height:180px;
   box-shadow:0 2px 8px rgba(0,0,0,.22);
-  backdrop-filter:blur(6px);
 }
 .card h2{
   font-size:12px;
@@ -448,40 +446,31 @@ td.right{text-align:right;color:var(--muted)}
   white-space:nowrap;
 }
 .na{color:var(--dim);font-style:normal}
-button{
-  min-height:34px;
-  border:1px solid var(--line-strong);
-  background:rgba(255,255,255,.06);
-  color:#eef2f3;
-  border-radius:6px;
-  padding:7px 10px;
-  font:inherit;
-  font-size:13px;
-  font-weight:700;
-  line-height:1.15;
-  cursor:pointer;
-}
-button:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24)}
+button{border-radius:4px;padding:4px 9px;font:inherit;font-size:11px;font-weight:700;line-height:1.15;cursor:pointer;border:1px solid transparent}
 button:disabled{opacity:.45;cursor:not-allowed}
 button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.btn-primary{background:#e8eaeb;color:#0d0f10;border-color:#e8eaeb}
+.btn-primary:hover{background:#f4f6f7;border-color:#f4f6f7}
+.btn-ghost{background:transparent;color:#a4adb4;border-color:rgba(255,255,255,.14)}
+.btn-ghost:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22)}
+.btn-icon{background:transparent;color:#7a848c;border-color:rgba(255,255,255,.12);width:28px;padding:4px 0;text-align:center}
+.btn-icon:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);color:#a4adb4}
 .btn-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.action-status{
-  min-height:42px;
-  display:flex;
-  align-items:center;
-  margin-bottom:16px;
-  padding:10px 14px;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:rgba(255,255,255,.035);
-  color:var(--muted);
-  font-size:14px;
-}
-.action-status:empty::before{content:"Ready";color:var(--dim)}
-.action-status.ok{border-color:rgba(54,215,131,.22);background:rgba(54,215,131,.06);color:var(--green)}
-.action-status.err{border-color:rgba(255,107,107,.26);background:rgba(255,107,107,.07);color:var(--red)}
+#toast{position:fixed;top:16px;right:16px;max-width:320px;padding:10px 14px;border-radius:6px;font-size:13px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100}
+#toast.show{opacity:1}
+#toast.ok{background:rgba(54,215,131,.12);border:1px solid rgba(54,215,131,.3);color:var(--green)}
+#toast.err{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.28);color:var(--red)}
+.setup-banner{display:none;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid rgba(255,107,107,.22);background:rgba(255,107,107,.06);border-radius:6px;margin-bottom:12px}
+.setup-banner.visible{display:flex}
+.setup-step{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:var(--muted)}
+.step-done{display:inline-flex;width:18px;height:18px;border-radius:50%;background:rgba(54,215,131,.2);color:var(--green);font-size:10px;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+.step-now{display:inline-flex;width:18px;height:18px;border-radius:50%;background:rgba(101,183,255,.2);color:var(--blue);font-size:10px;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+.suggested-models{margin-top:10px;background:#0d1012;border:1px solid rgba(101,183,255,.18);border-radius:5px;padding:8px}
+.suggested-models .mdl-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;gap:10px}
+.suggested-models .mdl-row:last-child{border-bottom:none}
+.sz{color:var(--muted);font-size:12px;flex:1;text-align:right;padding-right:8px}
+meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
 .controls-note{color:var(--muted);font-size:13px;margin-top:10px}
-.models-card{min-height:320px}
 @media(max-width:1050px){
   body{padding:20px}
   .grid{grid-template-columns:1fr}
