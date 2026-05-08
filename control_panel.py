@@ -590,7 +590,7 @@ function renderStorage(d){
     if(!entry.available)continue;
     const used=(entry.used_bytes/1e9).toFixed(1),total=(entry.total_bytes/1e9).toFixed(1);
     const pct=entry.used_bytes/entry.total_bytes;
-    const warn=pct>0.85?" class=\"warn\" ":"";
+    const warn=pct>0.85?" class='warn' ":"";
     h+=`<div class="metric-block"><div class="metric-label"><span>${esc(label)}</span><span class="metric-value">${used} / ${total} GB</span></div><meter ${warn}value="${entry.used_bytes}" min="0" max="${entry.total_bytes}"></meter></div>`;
   }
   document.getElementById("sto").innerHTML=h||'<span class="na">unavailable</span>';
