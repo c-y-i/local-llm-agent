@@ -54,7 +54,11 @@ sudo systemctl start llama-cline
 
 更完整的硬件列表和一些容易踩坑的地方见 [`docs/hardware-matching.md`](docs/hardware-matching.md)。
 
-## 编辑器 / Agent 示例
+## Agent 演示
+
+这个工作区的目标是让几个本地 agent 工作流共享同一套 Ollama 模型库和辅助脚本。
+
+### Cline
 
 想直接控制 GGUF 文件和上下文设置，可以让 Cline 连 llama.cpp：
 
@@ -86,6 +90,10 @@ sudo systemctl start llama-cline
 
 如果存在 `models/qwen2.5-coder-3b.gguf`，llama.cpp 包装脚本会默认用它。
 
+完整说明见 [`docs/cline.md`](docs/cline.md)。
+
+### Claude Code
+
 Claude Code 可以通过本地 Anthropic proxy 使用 Ollama。直接运行
 `claude-local` 会打开模型选择器；当前 Ollama 已加载的模型会排在最上面并标记为 `RUNNING`：
 
@@ -94,6 +102,12 @@ Claude Code 可以通过本地 Anthropic proxy 使用 Ollama。直接运行
 sudo systemctl start litellm-proxy
 claude-local
 ```
+
+<img src="docs/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
+
+完整说明见 [`docs/claude-local.md`](docs/claude-local.md)、[`docs/claude-code.md`](docs/claude-code.md) 和 [`docs/claude-proxy.md`](docs/claude-proxy.md)。
+
+### Copilot
 
 想让 VS Code 的 Copilot Chat 用本地 Ollama 模型：
 
@@ -105,7 +119,9 @@ ollama launch vscode
 
 然后在 VS Code 的 Copilot Chat 模型选择器里选本地 Ollama 模型。手动配置的话，在 Language Models 里添加 Ollama provider，并把要用的模型显示出来。
 
-Cline 细节见 [`docs/cline.md`](docs/cline.md)，Claude Code + Ollama 见 [`docs/claude-code.md`](docs/claude-code.md)，Copilot + Ollama 见 [`docs/copilot.md`](docs/copilot.md)。
+<img src="docs/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
+
+完整说明见 [`docs/copilot.md`](docs/copilot.md)。
 
 ## 路径变量
 

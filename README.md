@@ -54,9 +54,15 @@ sudo systemctl start llama-cline
 
 See [`docs/hardware-matching.md`](docs/hardware-matching.md) for the full hardware list and the little traps worth knowing about.
 
-## Editor / Agent Examples
+## Agent Demos
 
-Use Cline with llama.cpp when you want direct control over GGUF files and context settings:
+This workspace is meant to support several local-agent workflows from the same
+Ollama model store and helper scripts.
+
+### Cline
+
+Use Cline with llama.cpp when you want direct control over GGUF files and
+context settings:
 
 | Cline field | Value |
 |---|---|
@@ -68,7 +74,8 @@ Use Cline with llama.cpp when you want direct control over GGUF files and contex
 | Temperature | `0.2` |
 | Max Tokens | `1024` to `2048` |
 
-Use Cline with Ollama when you want Cline to use an installed Ollama model directly:
+Or connect Cline directly to Ollama when you want to use an installed Ollama
+model tag:
 
 | Cline field | Value |
 |---|---|
@@ -86,6 +93,10 @@ When connected, Cline can run against a local Ollama model like this:
 
 If `models/qwen2.5-coder-3b.gguf` exists, the llama.cpp wrapper uses it by default.
 
+Full guide: [`docs/cline.md`](docs/cline.md).
+
+### Claude Code
+
 Use Claude Code with Ollama via the local Anthropic proxy. Running
 `claude-local` with no arguments opens a model picker; currently loaded Ollama
 models are shown first and marked `RUNNING`:
@@ -96,9 +107,13 @@ sudo systemctl start litellm-proxy
 claude-local
 ```
 
-Model picker screenshot slot:
-
 <img src="docs/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
+
+Full guides: [`docs/claude-local.md`](docs/claude-local.md),
+[`docs/claude-code.md`](docs/claude-code.md), and
+[`docs/claude-proxy.md`](docs/claude-proxy.md).
+
+### Copilot
 
 Use Copilot Chat with Ollama when you want VS Code to use installed Ollama models:
 
@@ -110,7 +125,9 @@ ollama launch vscode
 
 In VS Code Copilot Chat, select a local Ollama model from the model picker. If you configure it manually, add Ollama as a language model provider and make sure the local model is visible.
 
-See [`docs/cline.md`](docs/cline.md) for Cline details, [`docs/claude-code.md`](docs/claude-code.md) for Claude Code + Ollama setup, and [`docs/copilot.md`](docs/copilot.md) for Copilot + Ollama notes.
+<img src="docs/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
+
+Full guide: [`docs/copilot.md`](docs/copilot.md).
 
 ## Path Variables
 
