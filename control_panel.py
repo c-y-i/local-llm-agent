@@ -514,10 +514,11 @@ const SUGGESTED=[
 function esc(s){const d=document.createElement("div");d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 function dot(on){return '<span class="dot '+(on?"on":"off")+'"></span>';}
 function ctl(d){return d.controls?.enabled===true;}
-let _toastTimer=null;
+let _toastTimer=null,_toastClearPending=false;
 function setAction(msg,ok){
   const t=document.getElementById("toast");
   clearTimeout(_toastTimer);
+  _toastClearPending=false;
   t.className="show "+(ok?"ok":"err");
   t.textContent=msg||"";
   _toastTimer=setTimeout(()=>{t.className="";},4000);
@@ -529,6 +530,7 @@ async function postAction(path,payload){
     const d=await r.json();
     setAction(d.message||("HTTP "+r.status),r.ok&&d.ok);
     await poll();
+    _toastClearPending=true;
   }catch(e){setAction("action failed: "+e,false);}
 }
 function pullModel(btn,model){
@@ -622,6 +624,7 @@ function renderMdl(d){
   document.getElementById("mdl").innerHTML=h;
 }
 async function poll(){
+  if(_toastClearPending){_toastClearPending=false;clearTimeout(_toastTimer);document.getElementById("toast").className="";}
   try{
     const r=await fetch("/api/status");
     if(!r.ok)throw new Error(r.status);
