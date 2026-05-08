@@ -62,7 +62,7 @@ Full guide: [`docs/copilot.md`](docs/copilot.md)
 
 `monitor.py` (read-only, port 8765) and `control_panel.py` (full controls, port 8766) are single-file Python dashboards that require nothing beyond stdlib.
 
-<!-- Add control panel screenshot here -->
+<img src="docs/control_panel.png" alt="Local LLM Control Panel dashboard" width="720">
 
 **What the dashboard shows:**
 
