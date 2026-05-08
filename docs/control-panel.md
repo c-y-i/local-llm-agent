@@ -33,7 +33,7 @@ Monitor is useful on shared or remote machines where you want visibility without
 
 ## Setup flow
 
-The control panel detects when Ollama isn't running (shows a one-click start banner) and when no models are pulled (shows a curated pull list: qwen3:4b, qwen2.5-coder:3b, llama3.2:1b). Once a model is pulled the panel transitions to the normal view automatically.
+The control panel detects when Ollama isn't running (shows a one-click start banner) and when no models are pulled (shows a pull catalog with one recommendation based on detected VRAM/RAM headroom). Once a model is pulled the panel transitions to the normal view automatically.
 
 ## Env vars
 
@@ -42,10 +42,20 @@ The control panel detects when Ollama isn't running (shows a one-click start ban
 | `LLM_DASHBOARD_PORT` | 8766 / 8765 | Override listen port |
 | `LLM_DASHBOARD_HOST` | `127.0.0.1` | Override listen address |
 | `LLM_MONITOR_CONTROLS` | `1` / `0` | Force controls on or off regardless of script |
+| `LLM_PULLABLE_MODELS_JSON` | built-in starter catalog | JSON array of pullable Ollama model objects |
+| `LLM_PULLABLE_MODELS_FILE` | — | Path to a JSON file containing the pull catalog |
 
 ```bash
 LLM_DASHBOARD_PORT=9000 python3 control_panel.py
 LLM_MONITOR_CONTROLS=1  python3 monitor.py      # monitor with controls enabled
+```
+
+Pull catalog entries use this shape:
+
+```json
+[
+  {"name": "qwen2.5-coder:3b", "size_gb": 1.9, "desc": "coding"}
+]
 ```
 
 Controls only accept localhost connections and run as the current user.

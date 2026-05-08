@@ -17,6 +17,27 @@ class TestControlsFlag(unittest.TestCase):
         self.assertFalse(control_panel.controls_enabled())
 
 
+class TestPullableModels(unittest.TestCase):
+    @patch.dict(os.environ, {"LLM_PULLABLE_MODELS_JSON": '[{"name":"tiny:test","size_gb":0.4,"desc":"test"}]'})
+    def test_pullable_models_can_come_from_env_json(self):
+        result = control_panel.pullable_models()
+        self.assertEqual(result, [{"name": "tiny:test", "size_gb": 0.4, "desc": "test"}])
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_recommendation_prefers_fitting_coder_model(self):
+        result = control_panel.get_model_recommendation(
+            {"available": True, "vram_total_mib": 6 * 1024},
+            {"ram": {"available": True, "total_mib": 32 * 1024}},
+            [
+                {"name": "general:4b", "size_gb": 2.6, "desc": "general chat"},
+                {"name": "coder:3b", "size_gb": 1.9, "desc": "coding"},
+                {"name": "coder:7b", "size_gb": 4.7, "desc": "coding"},
+            ],
+        )
+        self.assertEqual(result["model"]["name"], "coder:3b")
+        self.assertIn("VRAM", result["tier"])
+
+
 class TestDashboardTemplate(unittest.TestCase):
     def test_dashboard_uses_app_text(self):
         self.assertIn("<title>Local LLM Control Panel</title>", control_panel.dashboard_html())
@@ -235,6 +256,8 @@ class TestGetStorage(unittest.TestCase):
         ):
             result = control_panel.build_status()
         self.assertIn("storage", result)
+        self.assertIn("pullable_models", result)
+        self.assertIn("recommendation", result)
 
 
 class TestRunOllamaPull(unittest.TestCase):

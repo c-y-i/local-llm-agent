@@ -15,12 +15,16 @@ from socketserver import ThreadingMixIn
 
 SERVICES = ("ollama", "llama-cline", "litellm-proxy")
 SERVICE_ACTIONS = ("start", "stop", "restart")
-PULLABLE_MODELS = (
-    {"name": "qwen3:4b",          "size_gb": 2.6, "desc": "general chat"},
-    {"name": "qwen2.5-coder:3b",  "size_gb": 1.9, "desc": "coding"},
-    {"name": "llama3.2:1b",       "size_gb": 1.3, "desc": "fast / low RAM"},
+DEFAULT_PULLABLE_MODELS = (
+    {"name": "llama3.2:1b",       "size_gb": 1.3,  "desc": "fast / low RAM"},
+    {"name": "qwen2.5-coder:1.5b", "size_gb": 0.9, "desc": "small coding"},
+    {"name": "qwen2.5-coder:3b",  "size_gb": 1.9,  "desc": "coding"},
+    {"name": "qwen3:4b",          "size_gb": 2.6,  "desc": "general chat"},
+    {"name": "qwen2.5-coder:7b",  "size_gb": 4.7,  "desc": "coding / Cline"},
+    {"name": "qwen3:8b",          "size_gb": 5.2,  "desc": "general chat"},
+    {"name": "qwen2.5-coder:14b", "size_gb": 9.0,  "desc": "strong coding"},
+    {"name": "qwen2.5-coder:32b", "size_gb": 19.0, "desc": "high-end coding"},
 )
-PULLABLE_MODEL_TAGS = frozenset(m["name"] for m in PULLABLE_MODELS)
 LOCAL_CLIENTS = ("127.0.0.1", "::1")
 DEFAULT_CONTROLS = "1"
 DEFAULT_PORT = "8766"
@@ -40,6 +44,50 @@ def controls_enabled():
         "yes",
         "on",
     )
+
+
+def _normalize_pullable_model(model):
+    if not isinstance(model, dict):
+        return None
+    name = str(model.get("name", "")).strip()
+    if not name:
+        return None
+    try:
+        size_gb = float(model.get("size_gb", 0))
+    except (TypeError, ValueError):
+        size_gb = 0.0
+    return {
+        "name": name,
+        "size_gb": round(size_gb, 1),
+        "desc": str(model.get("desc", "")).strip(),
+    }
+
+
+def pullable_models():
+    raw = os.environ.get("LLM_PULLABLE_MODELS_JSON")
+    if raw:
+        try:
+            models = json.loads(raw)
+            normalized = [_normalize_pullable_model(m) for m in models]
+            return [m for m in normalized if m]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    path = os.environ.get("LLM_PULLABLE_MODELS_FILE")
+    if path:
+        try:
+            with open(path) as f:
+                models = json.load(f)
+            normalized = [_normalize_pullable_model(m) for m in models]
+            return [m for m in normalized if m]
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    return [dict(model) for model in DEFAULT_PULLABLE_MODELS]
+
+
+def pullable_model_tags():
+    return frozenset(model["name"] for model in pullable_models())
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +256,71 @@ def get_storage():
     return result
 
 
+def get_model_recommendation(gpu, system, models=None):
+    if models is None:
+        models = pullable_models()
+    sized_models = [m for m in models if isinstance(m.get("size_gb"), (int, float)) and m["size_gb"] > 0]
+    if not sized_models:
+        return None
+
+    memory_gb = None
+    memory_kind = "hardware"
+    budget_gb = None
+    if isinstance(gpu, dict) and gpu.get("available"):
+        try:
+            memory_gb = gpu.get("vram_total_mib", 0) / 1024
+            budget_gb = memory_gb * 0.72
+            memory_kind = "VRAM"
+        except TypeError:
+            memory_gb = None
+
+    ram = system.get("ram", {}) if isinstance(system, dict) else {}
+    if budget_gb is None and ram.get("available"):
+        try:
+            memory_gb = ram.get("total_mib", 0) / 1024
+            budget_gb = memory_gb * 0.35
+            memory_kind = "RAM"
+        except TypeError:
+            memory_gb = None
+
+    if budget_gb is None:
+        picked = min(sized_models, key=lambda m: m["size_gb"])
+        reason = "Hardware details are unavailable, so the smallest configured model is selected."
+        context = "2048-4096"
+        tier = "unknown hardware"
+    else:
+        fitting = [m for m in sized_models if m["size_gb"] <= budget_gb]
+        if fitting:
+            def _rank(model):
+                text = f"{model['name']} {model.get('desc', '')}".lower()
+                coding_fit = any(term in text for term in ("code", "coder", "cline"))
+                return (1 if coding_fit else 0, model["size_gb"])
+            picked = max(fitting, key=_rank)
+        else:
+            picked = min(sized_models, key=lambda m: m["size_gb"])
+        headroom = budget_gb / picked["size_gb"] if picked["size_gb"] else 0
+        if headroom >= 3.5:
+            context = "16384-32768"
+        elif headroom >= 2.0:
+            context = "8192-16384"
+        elif headroom >= 1.2:
+            context = "4096-8192"
+        else:
+            context = "2048-4096"
+        tier = f"{memory_gb:.1f} GB {memory_kind}" if memory_gb is not None else "detected hardware"
+        reason = (
+            f"Selected from the configured pull catalog using a conservative "
+            f"{budget_gb:.1f} GB {memory_kind} budget for model weights and KV cache."
+        )
+
+    return {
+        "model": dict(picked),
+        "context": context,
+        "tier": tier,
+        "reason": reason,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Control actions
 # ---------------------------------------------------------------------------
@@ -270,7 +383,7 @@ def run_ollama_action(action, model):
     model = model.strip()
 
     if action == "pull":
-        if model not in PULLABLE_MODEL_TAGS:
+        if model not in pullable_model_tags():
             return _action_result(False, f"model not in pull allowlist: {model}")
         known = _known_ollama_models()
         if known is None:
@@ -463,6 +576,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .suggested-models{margin-top:10px;background:#0d1012;border:1px solid rgba(101,183,255,.18);border-radius:5px;padding:8px}
 .suggested-models .mdl-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;gap:10px}
 .suggested-models .mdl-row:last-child{border-bottom:none}
+.rec-badge{color:var(--blue);font-size:11px;font-weight:800;text-transform:uppercase;margin-left:6px}
+.rec-note{color:var(--muted);font-size:12px;line-height:1.35;margin-top:8px}
 .sz{color:var(--muted);font-size:12px;flex:1;text-align:right;padding-right:8px}
 meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
 .controls-note{color:var(--muted);font-size:13px;margin-top:10px}
@@ -506,11 +621,6 @@ meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
 <script>
 const SVCS={"ollama":"ollama","llama-cline":"llama-cline","litellm-proxy":"litellm-proxy"};
 const PORTS={"anthropic-proxy":"anthropic-proxy :4000","stable-diffusion":"stable-diffusion :7860"};
-const SUGGESTED=[
-  {name:"qwen3:4b",size:"2.6 GB",desc:"general chat"},
-  {name:"qwen2.5-coder:3b",size:"1.9 GB",desc:"coding"},
-  {name:"llama3.2:1b",size:"1.3 GB",desc:"fast / low RAM"},
-];
 function esc(s){const d=document.createElement("div");d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 function dot(on){return '<span class="dot '+(on?"on":"off")+'"></span>';}
 function ctl(d){return d.controls?.enabled===true;}
@@ -544,6 +654,15 @@ function modelButtons(name,loaded){
   const m=encodeURIComponent(name);
   const unload=loaded?`<button class="btn-ghost" onclick="postAction('/api/actions/ollama',{action:'unload',model:decodeURIComponent('${m}')})">Unload</button>`:"";
   return `<span class="btn-row"><button class="btn-primary" onclick="postAction('/api/actions/ollama',{action:'warmup',model:decodeURIComponent('${m}')})">Load</button>${unload}</span>`;
+}
+function suggestedModels(d){
+  const models=Array.isArray(d.pullable_models)?d.pullable_models:[];
+  const rec=d.recommendation?.model?.name;
+  return models.slice().sort((a,b)=>{
+    if(a.name===rec)return -1;
+    if(b.name===rec)return 1;
+    return (a.size_gb||0)-(b.size_gb||0);
+  });
 }
 function renderBanner(d){
   const b=document.getElementById("setup-banner");
@@ -602,9 +721,15 @@ function renderMdl(d){
     if(controls){
       let h='<div class="setup-step"><span class="step-done">&#x2713;</span>Ollama running</div>';
       h+='<div class="setup-step"><span class="step-now">2</span>No models pulled &mdash; pull one to get started</div>';
+      const rec=d.recommendation,recName=rec?.model?.name;
+      if(recName){
+        h+=`<div class="rec-note">Recommended: <span class="mono">${esc(recName)}</span> for ${esc(rec.tier||"detected hardware")} &middot; context ${esc(rec.context||"default")}</div>`;
+      }
       h+='<div class="suggested-models">';
-      for(const m of SUGGESTED){
-        h+=`<div class="mdl-row"><span class="mono">${esc(m.name)}</span><span class="sz">${esc(m.size)} &middot; ${esc(m.desc)}</span><button class="btn-primary" onclick="pullModel(this,decodeURIComponent('${encodeURIComponent(m.name)}'))">Pull</button></div>`;
+      for(const m of suggestedModels(d)){
+        const isRec=m.name===recName;
+        const size=(Number(m.size_gb)||0).toFixed(1)+" GB";
+        h+=`<div class="mdl-row"><span class="mono">${esc(m.name)}${isRec?'<span class="rec-badge">Recommended</span>':""}</span><span class="sz">${esc(size)} &middot; ${esc(m.desc||"model")}</span><button class="btn-primary" onclick="pullModel(this,decodeURIComponent('${encodeURIComponent(m.name)}'))">Pull</button></div>`;
       }
       h+='</div>';
       document.getElementById("mdl").innerHTML=h;
@@ -656,15 +781,20 @@ def dashboard_html():
 # ---------------------------------------------------------------------------
 
 def build_status():
+    gpu = get_gpu()
+    system = get_system()
+    models = pullable_models()
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
         "controls": {"enabled": controls_enabled()},
         "services": get_services(),
         "ports": probe_ports(),
-        "gpu": get_gpu(),
-        "system": get_system(),
+        "gpu": gpu,
+        "system": system,
         "ollama": get_ollama(),
         "storage": get_storage(),
+        "pullable_models": models,
+        "recommendation": get_model_recommendation(gpu, system, models),
     }
 
 
