@@ -12,8 +12,6 @@ Locally deployable LLM sandbox: runs llama.cpp, Ollama, model files, service scr
 python3 control_panel.py   # http://localhost:8766
 ```
 
-<img src="docs/ollama_service.png" alt="Terminal showing Ollama service status, model list, and an ollama run chat" width="720">
-
 ## Agents
 
 ### Cline
