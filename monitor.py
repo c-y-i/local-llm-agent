@@ -100,7 +100,87 @@ def get_ollama():
 # Dashboard HTML — defined here, populated in the HTML template task
 # ---------------------------------------------------------------------------
 
-DASHBOARD_HTML = ""  # replaced by Task 3
+DASHBOARD_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM Monitor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;font-size:14px;background:#0f0f0f;color:#e0e0e0;padding:20px}
+h1{font-size:16px;font-weight:600;color:#fff}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+#ts{font-size:12px;color:#666}
+.grid{display:grid;grid-template-columns:220px 1fr;gap:12px;margin-bottom:12px}
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:14px}
+.card h2{font-size:11px;font-weight:600;letter-spacing:.08em;color:#888;text-transform:uppercase;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:8px;padding:3px 0}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.on{background:#22c55e}.off{background:#444}
+.label{color:#ccc;font-size:13px}
+.gpu-name{font-size:13px;color:#ccc;margin-bottom:8px}
+meter{width:100%;height:10px;margin:6px 0}
+.gpu-stats{font-size:12px;color:#888}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;color:#666;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:0 0 8px}
+td{padding:4px 0;font-size:13px;vertical-align:middle}
+td.right{text-align:right;color:#888}
+.mono{font-family:ui-monospace,monospace}
+.badge{font-size:11px;background:#1e3a2e;color:#22c55e;border-radius:3px;padding:1px 6px}
+.na{color:#555;font-style:italic}
+</style>
+</head>
+<body>
+<header><h1>LLM Monitor</h1><span id="ts">—</span></header>
+<div class="grid">
+  <div class="card"><h2>Services</h2><div id="svc"><span class="na">loading…</span></div></div>
+  <div class="card"><h2>GPU</h2><div id="gpu"><span class="na">loading…</span></div></div>
+</div>
+<div class="card"><h2>Models</h2><div id="mdl"><span class="na">loading…</span></div></div>
+<script>
+const SVCS={"ollama":"ollama","llama-cline":"llama-cline","litellm-proxy":"litellm-proxy"};
+const PORTS={"anthropic-proxy":"anthropic-proxy :4000","stable-diffusion":"stable-diffusion :7860"};
+function dot(on){return '<span class="dot '+(on?"on":"off")+'"></span>';}
+function renderSvc(d){
+  let h="";
+  for(const[k,l] of Object.entries(SVCS)){const on=d.services?.[k]?.status==="active";h+=`<div class="row">${dot(on)}<span class="label">${l}</span></div>`;}
+  for(const[k,l] of Object.entries(PORTS)){const on=d.ports?.[k]?.reachable===true;h+=`<div class="row">${dot(on)}<span class="label">${l}</span></div>`;}
+  document.getElementById("svc").innerHTML=h;
+}
+function renderGPU(d){
+  const g=d.gpu;
+  if(!g?.available){document.getElementById("gpu").innerHTML='<span class="na">unavailable</span>';return;}
+  const u=(g.vram_used_mib/1024).toFixed(1),t=(g.vram_total_mib/1024).toFixed(1);
+  document.getElementById("gpu").innerHTML=`<div class="gpu-name">${g.name}</div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter><div class="gpu-stats">VRAM ${u} / ${t} GB &nbsp;·&nbsp; Util ${g.utilization_pct}% &nbsp;·&nbsp; ${g.temp_c}°C</div>`;
+}
+function renderMdl(d){
+  const o=d.ollama;
+  if(!o?.reachable){document.getElementById("mdl").innerHTML='<span class="na">Ollama unreachable</span>';return;}
+  if(!o.models?.length){document.getElementById("mdl").innerHTML='<span class="na">no models pulled</span>';return;}
+  const rm=new Map((o.running||[]).map(r=>[r.name,r]));
+  let h='<table><thead><tr><th>Model</th><th>Size</th><th></th></tr></thead><tbody>';
+  for(const m of o.models){
+    const r=rm.get(m.name);
+    const badge=r?`<span class="badge">loaded · ${r.vram_mib} MiB</span>`:"";
+    h+=`<tr><td class="mono">${m.name}</td><td class="right">${m.size_gb} GB</td><td class="right">${badge}</td></tr>`;
+  }
+  h+="</tbody></table>";
+  document.getElementById("mdl").innerHTML=h;
+}
+async function poll(){
+  try{
+    const r=await fetch("/api/status");
+    const d=await r.json();
+    document.getElementById("ts").textContent="updated "+d.timestamp.slice(11,19);
+    renderSvc(d);renderGPU(d);renderMdl(d);
+  }catch(e){document.getElementById("ts").textContent="fetch failed";}
+}
+poll();setInterval(poll,5000);
+</script>
+</body>
+</html>"""
 
 # ---------------------------------------------------------------------------
 # Aggregator
