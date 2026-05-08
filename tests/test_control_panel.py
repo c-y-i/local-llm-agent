@@ -194,6 +194,49 @@ class TestGetSystemCPUModel(unittest.TestCase):
         self.assertNotIn("model", result["cpu"])
 
 
+class TestGetStorage(unittest.TestCase):
+    @patch("control_panel.shutil.disk_usage")
+    @patch("control_panel.os.path.isdir", return_value=False)
+    def test_root_filesystem_included(self, mock_isdir, mock_du):
+        from collections import namedtuple
+        DU = namedtuple("usage", ["total", "used", "free"])
+        mock_du.return_value = DU(total=500 * 1024**3, used=200 * 1024**3, free=300 * 1024**3)
+        result = control_panel.get_storage()
+        self.assertIn("/ (root)", result)
+        self.assertTrue(result["/ (root)"]["available"])
+        self.assertEqual(result["/ (root)"]["total_bytes"], 500 * 1024**3)
+        self.assertEqual(result["/ (root)"]["used_bytes"], 200 * 1024**3)
+
+    @patch("control_panel.shutil.disk_usage")
+    @patch("control_panel.os.path.isdir", return_value=True)
+    def test_models_dir_included_when_exists(self, mock_isdir, mock_du):
+        from collections import namedtuple
+        DU = namedtuple("usage", ["total", "used", "free"])
+        mock_du.return_value = DU(total=500 * 1024**3, used=40 * 1024**3, free=460 * 1024**3)
+        result = control_panel.get_storage()
+        self.assertIn("models", result)
+        self.assertTrue(result["models"]["available"])
+
+    @patch("control_panel.shutil.disk_usage", side_effect=OSError("no disk"))
+    @patch("control_panel.os.path.isdir", return_value=False)
+    def test_root_unavailable_on_error(self, mock_isdir, mock_du):
+        result = control_panel.get_storage()
+        self.assertFalse(result["/ (root)"]["available"])
+
+    def test_build_status_includes_storage(self):
+        with patch.multiple(
+            "control_panel",
+            get_services=lambda: {},
+            probe_ports=lambda: {},
+            get_gpu=lambda: {"available": False},
+            get_system=lambda: {"ram": {"available": False}, "cpu": {"available": False}},
+            get_ollama=lambda: {"reachable": False, "models": [], "running": []},
+            get_storage=lambda: {"/ (root)": {"available": True, "total_bytes": 1, "used_bytes": 1}},
+        ):
+            result = control_panel.build_status()
+        self.assertIn("storage", result)
+
+
 class TestControlActions(unittest.TestCase):
     @patch("control_panel.subprocess.run")
     def test_run_service_action_allowlisted(self, mock_run):

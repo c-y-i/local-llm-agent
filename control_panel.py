@@ -170,6 +170,38 @@ def get_system():
     return {"ram": ram, "cpu": cpu}
 
 
+def get_storage():
+    result = {}
+    try:
+        usage = shutil.disk_usage("/")
+        result["/ (root)"] = {
+            "available": True,
+            "total_bytes": usage.total,
+            "used_bytes": usage.used,
+        }
+    except Exception:
+        result["/ (root)"] = {"available": False}
+
+    models_dir = os.environ.get(
+        "OLLAMA_MODELS",
+        os.path.normpath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Ollama", "models", "llm")
+        ),
+    )
+    if os.path.isdir(models_dir):
+        try:
+            usage = shutil.disk_usage(models_dir)
+            result["models"] = {
+                "available": True,
+                "total_bytes": usage.total,
+                "used_bytes": usage.used,
+            }
+        except Exception:
+            result["models"] = {"available": False}
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Control actions
 # ---------------------------------------------------------------------------
@@ -576,6 +608,7 @@ def build_status():
         "gpu": get_gpu(),
         "system": get_system(),
         "ollama": get_ollama(),
+        "storage": get_storage(),
     }
 
 
