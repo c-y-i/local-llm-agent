@@ -31,28 +31,34 @@ export OLLAMA_MODELS
 ollama serve
 ```
 
-## Portable SSD Server
+## Portable LLM Launcher
 
-For a removable SSD, use the portable launcher:
+For a removable drive, use the Portable LLM Launcher:
 
 ```bash
-./scripts/ollama/portable-serve.sh
+./scripts/ollama/portable-llm-launcher.sh
 ```
 
 It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
-and prefers a bundled SSD binary at `../bin/ollama/<os>-<arch>/ollama`. If no
+and prefers a bundled binary at `../bin/ollama/<os>-<arch>/ollama[.exe]`. If no
 bundled binary exists, it falls back to the host's `ollama` on `PATH`.
 
-To put the current host's Ollama binary on the SSD:
+To put the current host's Ollama binary on the removable drive:
 
 ```bash
-./scripts/ollama/install-portable-ollama.sh
+./scripts/ollama/install-portable-llm-binary.sh
 ```
 
 Use a separate port when the host already has an Ollama service:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:11435 ./scripts/ollama/portable-serve.sh
+OLLAMA_HOST=127.0.0.1:11435 ./scripts/ollama/portable-llm-launcher.sh
+```
+
+Windows users can start the same layout with:
+
+```bat
+scripts\ollama\portable-llm-launcher.cmd
 ```
 
 ## Service Basics

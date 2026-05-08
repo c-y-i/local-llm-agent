@@ -101,7 +101,7 @@ Every path is overridable via env vars. Large model files (GGUF, Ollama blobs) a
 | [`docs/setup.md`](docs/setup.md) | Portable layout, env vars, services, setup flow |
 | [`docs/control-panel.md`](docs/control-panel.md) | Control panel and monitor — usage, env vars |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | Hardware tiers → model choices |
-| [`docs/portable-ssd.md`](docs/portable-ssd.md) | Run Ollama and the model store from a removable SSD |
+| [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md) | Portable LLM Launcher for Linux, macOS, and Windows |
 | [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/server usage |
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama service and API usage |
 | [`docs/cline.md`](docs/cline.md) | Cline integration and troubleshooting |
