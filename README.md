@@ -2,15 +2,42 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Locally deployable LLM sandbox: runs llama.cpp, Ollama, model files, service scripts, and a web dashboard all from one directory. Plug it into Cline, Claude Code, or Copilot.
+Locally deployable LLM sandbox — run models on your own hardware and plug into agent workflows. Full control, private, and no token limits.
 
 ## Quick Start
 
 ```bash
-./scripts/setup/check-prereqs.sh
-./scripts/ollama/serve.sh
-python3 control_panel.py   # http://localhost:8766
+./scripts/setup/check-prereqs.sh       # verify dependencies
+./scripts/setup/configure-ollama.sh    # set up Ollama (first time only)
+
+python3 control_panel.py               # browser UI  →  http://localhost:8766
+# — or —
+./scripts/ollama/serve.sh && ollama run qwen3:4b
 ```
+
+## Dashboard
+
+Single-file Python dashboards — nothing beyond stdlib.
+
+### Control Panel
+
+Full service and model controls at `http://localhost:8766`.
+
+```bash
+python3 control_panel.py
+```
+
+<img src="docs/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+
+### Monitor
+
+Read-only status view at `http://localhost:8765` — safe to expose on shared machines.
+
+```bash
+python3 monitor.py
+```
+
+Full guide: [`docs/control-panel.md`](docs/control-panel.md)
 
 ## Agents
 
@@ -56,32 +83,6 @@ Then select the local model in VS Code Copilot Chat.
 
 Full guide: [`docs/copilot.md`](docs/copilot.md)
 
-## Dashboard
-
-`monitor.py` (read-only, port 8765) and `control_panel.py` (full controls, port 8766) are single-file Python dashboards that require nothing beyond stdlib.
-
-<img src="docs/control_panel.png" alt="Local LLM Control Panel dashboard" width="720">
-
-**What the dashboard shows:**
-
-| Card | Contents |
-|---|---|
-| Services | ollama, llama-cline, litellm-proxy — start / stop / restart |
-| GPU | VRAM usage, utilization, temperature |
-| System | CPU model, cores, RAM meter |
-| Storage | Root disk + Ollama models directory (highlights >85% full) |
-| Models | Full Ollama model list with load / unload controls |
-
-**Setup flow:** the control panel detects when Ollama isn't running (shows a one-click start banner) and when no models are pulled (shows a curated pull list: qwen3:4b, qwen2.5-coder:3b, llama3.2:1b). Once a model is pulled, the panel transitions to the normal view automatically.
-
-```bash
-python3 monitor.py         # read-only  — http://localhost:8765
-python3 control_panel.py   # controls   — http://localhost:8766
-LLM_DASHBOARD_PORT=9000 python3 monitor.py   # override port
-```
-
-Controls only accept localhost connections and run as the current user.
-
 ## Layout
 
 ```text
@@ -98,6 +99,7 @@ Every path is overridable via env vars. Large model files (GGUF, Ollama blobs) a
 | File | What it covers |
 |---|---|
 | [`docs/setup.md`](docs/setup.md) | Portable layout, env vars, services, setup flow |
+| [`docs/control-panel.md`](docs/control-panel.md) | Control panel and monitor — usage, env vars |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | Hardware tiers → model choices |
 | [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/server usage |
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama service and API usage |

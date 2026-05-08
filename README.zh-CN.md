@@ -2,15 +2,42 @@
 
 [English](README.md) | 简体中文
 
-本地可部署的 LLM 实验环境：把 llama.cpp、Ollama、模型文件、服务脚本和 Web 控制台都放在同一个目录里，可直接接入 Cline、Claude Code 或 Copilot。
+本地可部署的 LLM 实验环境——在自己的机器上跑模型，接入 agent 工作流。自主可控，数据留本地，不限 token。
 
 ## 快速开始
 
 ```bash
-./scripts/setup/check-prereqs.sh
-./scripts/ollama/serve.sh
-python3 control_panel.py   # http://localhost:8766
+./scripts/setup/check-prereqs.sh       # 检查依赖
+./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次）
+
+python3 control_panel.py               # 浏览器 UI  →  http://localhost:8766
+# — 或 —
+./scripts/ollama/serve.sh && ollama run qwen3:4b
 ```
+
+## 控制台
+
+纯 Python stdlib，无需任何依赖。
+
+### 控制面板
+
+完整服务和模型控制，访问 `http://localhost:8766`。
+
+```bash
+python3 control_panel.py
+```
+
+<img src="docs/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+
+### 监控面板
+
+只读状态视图，访问 `http://localhost:8765`，适合在共享机器上安全暴露。
+
+```bash
+python3 monitor.py
+```
+
+完整说明：[`docs/control-panel.md`](docs/control-panel.md)
 
 ## Agents
 
@@ -56,32 +83,6 @@ ollama pull qwen2.5-coder:7b
 
 完整说明：[`docs/copilot.md`](docs/copilot.md)
 
-## 控制台
-
-`monitor.py`（只读，端口 8765）和 `control_panel.py`（完整控制，端口 8766）是纯 Python stdlib 的 Web 控制台，无需任何依赖。
-
-<img src="docs/control_panel.png" alt="Local LLM Control Panel dashboard" width="720">
-
-**控制台内容：**
-
-| 卡片 | 内容 |
-|---|---|
-| Services | ollama、llama-cline、litellm-proxy — 启动 / 停止 / 重启 |
-| GPU | 显存占用、利用率、温度 |
-| System | CPU 型号、核心数、内存使用量 |
-| Storage | 根分区 + Ollama 模型目录（>85% 时高亮提示） |
-| Models | 已安装的 Ollama 模型列表，支持加载 / 卸载 |
-
-**引导流程：** 控制台会自动检测 Ollama 是否在运行（未运行时显示一键启动按钮），以及是否有已拉取的模型（没有时显示推荐模型列表：qwen3:4b、qwen2.5-coder:3b、llama3.2:1b）。模型拉取完成后自动切换到正常视图。
-
-```bash
-python3 monitor.py         # 只读  — http://localhost:8765
-python3 control_panel.py   # 完整控制 — http://localhost:8766
-LLM_DASHBOARD_PORT=9000 python3 monitor.py   # 自定义端口
-```
-
-控制操作只接受本机连接，以当前用户权限运行。
-
 ## 目录结构
 
 ```text
@@ -98,6 +99,7 @@ LLM_DASHBOARD_PORT=9000 python3 monitor.py   # 自定义端口
 | 文件 | 内容 |
 |---|---|
 | [`docs/setup.md`](docs/setup.md) | 目录结构、环境变量、服务和安装流程 |
+| [`docs/control-panel.md`](docs/control-panel.md) | 控制面板与监控面板 — 用法、环境变量 |
 | [`docs/hardware-matching.md`](docs/hardware-matching.md) | 按硬件选择模型 |
 | [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/server 用法 |
 | [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama 服务和 API 用法 |
