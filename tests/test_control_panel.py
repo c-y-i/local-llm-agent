@@ -237,6 +237,38 @@ class TestGetStorage(unittest.TestCase):
         self.assertIn("storage", result)
 
 
+class TestRunOllamaPull(unittest.TestCase):
+    def test_pull_rejects_non_allowlisted_model(self):
+        result = control_panel.run_ollama_action("pull", "evil-model:99b")
+        self.assertFalse(result["ok"])
+        self.assertIn("allowlist", result["message"])
+
+    @patch("control_panel._known_ollama_models", return_value=None)
+    def test_pull_fails_when_ollama_unreachable(self, _):
+        result = control_panel.run_ollama_action("pull", "qwen3:4b")
+        self.assertFalse(result["ok"])
+        self.assertIn("unreachable", result["message"])
+
+    @patch("control_panel.threading.Thread")
+    @patch("control_panel._known_ollama_models", return_value={"some:model"})
+    def test_pull_starts_thread_and_returns_ok_immediately(self, _, mock_thread):
+        mock_instance = MagicMock()
+        mock_thread.return_value = mock_instance
+        result = control_panel.run_ollama_action("pull", "qwen3:4b")
+        self.assertTrue(result["ok"])
+        self.assertIn("pulling", result["message"])
+        mock_instance.start.assert_called_once()
+
+    @patch("control_panel.threading.Thread")
+    @patch("control_panel._known_ollama_models", return_value=set())
+    def test_pull_thread_is_daemon(self, _, mock_thread):
+        mock_instance = MagicMock()
+        mock_thread.return_value = mock_instance
+        control_panel.run_ollama_action("pull", "llama3.2:1b")
+        _, kwargs = mock_thread.call_args
+        self.assertTrue(kwargs.get("daemon", False))
+
+
 class TestControlActions(unittest.TestCase):
     @patch("control_panel.subprocess.run")
     def test_run_service_action_allowlisted(self, mock_run):

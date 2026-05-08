@@ -15,6 +15,12 @@ from socketserver import ThreadingMixIn
 
 SERVICES = ("ollama", "llama-cline", "litellm-proxy")
 SERVICE_ACTIONS = ("start", "stop", "restart")
+PULLABLE_MODELS = (
+    {"name": "qwen3:4b",          "size_gb": 2.6, "desc": "general chat"},
+    {"name": "qwen2.5-coder:3b",  "size_gb": 1.9, "desc": "coding"},
+    {"name": "llama3.2:1b",       "size_gb": 1.3, "desc": "fast / low RAM"},
+)
+PULLABLE_MODEL_TAGS = frozenset(m["name"] for m in PULLABLE_MODELS)
 LOCAL_CLIENTS = ("127.0.0.1", "::1")
 DEFAULT_CONTROLS = "1"
 DEFAULT_PORT = "8766"
@@ -257,11 +263,25 @@ def _known_ollama_models():
 
 
 def run_ollama_action(action, model):
-    if action not in ("warmup", "unload"):
+    if action not in ("warmup", "unload", "pull"):
         return _action_result(False, f"unsupported Ollama action: {action}")
     if not isinstance(model, str) or not model.strip():
         return _action_result(False, "model is required")
     model = model.strip()
+
+    if action == "pull":
+        if model not in PULLABLE_MODEL_TAGS:
+            return _action_result(False, f"model not in pull allowlist: {model}")
+        known = _known_ollama_models()
+        if known is None:
+            return _action_result(False, "Ollama is unreachable")
+        def _do_pull():
+            try:
+                _ollama_post("/api/pull", {"model": model, "stream": False})
+            except Exception:
+                pass
+        threading.Thread(target=_do_pull, daemon=True).start()
+        return _action_result(True, f"pulling {model}…")
 
     known = _known_ollama_models()
     if known is None:
