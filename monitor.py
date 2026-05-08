@@ -142,6 +142,7 @@ td.right{text-align:right;color:#888}
 <script>
 const SVCS={"ollama":"ollama","llama-cline":"llama-cline","litellm-proxy":"litellm-proxy"};
 const PORTS={"anthropic-proxy":"anthropic-proxy :4000","stable-diffusion":"stable-diffusion :7860"};
+function esc(s){const d=document.createElement("div");d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 function dot(on){return '<span class="dot '+(on?"on":"off")+'"></span>';}
 function renderSvc(d){
   let h="";
@@ -153,7 +154,7 @@ function renderGPU(d){
   const g=d.gpu;
   if(!g?.available){document.getElementById("gpu").innerHTML='<span class="na">unavailable</span>';return;}
   const u=(g.vram_used_mib/1024).toFixed(1),t=(g.vram_total_mib/1024).toFixed(1);
-  document.getElementById("gpu").innerHTML=`<div class="gpu-name">${g.name}</div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter><div class="gpu-stats">VRAM ${u} / ${t} GB &nbsp;·&nbsp; Util ${g.utilization_pct}% &nbsp;·&nbsp; ${g.temp_c}°C</div>`;
+  document.getElementById("gpu").innerHTML=`<div class="gpu-name">${esc(g.name)}</div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter><div class="gpu-stats">VRAM ${u} / ${t} GB &nbsp;·&nbsp; Util ${esc(g.utilization_pct)}% &nbsp;·&nbsp; ${esc(g.temp_c)}°C</div>`;
 }
 function renderMdl(d){
   const o=d.ollama;
@@ -164,7 +165,7 @@ function renderMdl(d){
   for(const m of o.models){
     const r=rm.get(m.name);
     const badge=r?`<span class="badge">loaded · ${r.vram_mib} MiB</span>`:"";
-    h+=`<tr><td class="mono">${m.name}</td><td class="right">${m.size_gb} GB</td><td class="right">${badge}</td></tr>`;
+    h+=`<tr><td class="mono">${esc(m.name)}</td><td class="right">${esc(m.size_gb)} GB</td><td class="right">${badge}</td></tr>`;
   }
   h+="</tbody></table>";
   document.getElementById("mdl").innerHTML=h;
@@ -172,10 +173,11 @@ function renderMdl(d){
 async function poll(){
   try{
     const r=await fetch("/api/status");
+    if(!r.ok)throw new Error(r.status);
     const d=await r.json();
-    document.getElementById("ts").textContent="updated "+d.timestamp.slice(11,19);
+    document.getElementById("ts").textContent="updated "+(d.timestamp?.slice(11,19)??"—");
     renderSvc(d);renderGPU(d);renderMdl(d);
-  }catch(e){document.getElementById("ts").textContent="fetch failed";}
+  }catch(e){console.error(e);document.getElementById("ts").textContent="fetch failed";}
 }
 poll();setInterval(poll,5000);
 </script>
