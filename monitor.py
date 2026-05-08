@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """Read-only LLM stack monitor. Run with: python3 monitor.py"""
 import json
-import os
 import socket
 import subprocess
 import urllib.request
-import urllib.error
-from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from socketserver import ThreadingMixIn
 
 
 # ---------------------------------------------------------------------------

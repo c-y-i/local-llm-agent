@@ -100,6 +100,18 @@ class TestGetOllama(unittest.TestCase):
         self.assertEqual(result["models"], [])
         self.assertEqual(result["running"], [])
 
+    @patch("monitor.urllib.request.urlopen")
+    def test_tags_ok_ps_fails(self, mock_open):
+        # /api/tags succeeds, /api/ps fails → reachable True, running empty
+        tags_resp = self._make_resp(
+            b'{"models": [{"name": "qwen3:4b", "size": 2600000000}]}'
+        )
+        mock_open.side_effect = [tags_resp, Exception("timeout")]
+        result = monitor.get_ollama()
+        self.assertTrue(result["reachable"])
+        self.assertEqual(len(result["models"]), 1)
+        self.assertEqual(result["running"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
