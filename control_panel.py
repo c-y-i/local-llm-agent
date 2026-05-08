@@ -506,16 +506,24 @@ meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
 <script>
 const SVCS={"ollama":"ollama","llama-cline":"llama-cline","litellm-proxy":"litellm-proxy"};
 const PORTS={"anthropic-proxy":"anthropic-proxy :4000","stable-diffusion":"stable-diffusion :7860"};
+const SUGGESTED=[
+  {name:"qwen3:4b",size:"2.6 GB",desc:"general chat"},
+  {name:"qwen2.5-coder:3b",size:"1.9 GB",desc:"coding"},
+  {name:"llama3.2:1b",size:"1.3 GB",desc:"fast / low RAM"},
+];
 function esc(s){const d=document.createElement("div");d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
 function dot(on){return '<span class="dot '+(on?"on":"off")+'"></span>';}
 function ctl(d){return d.controls?.enabled===true;}
+let _toastTimer=null;
 function setAction(msg,ok){
-  const el=document.getElementById("action");
-  el.className="action-status "+(ok?"ok":"err");
-  el.textContent=msg||"";
+  const t=document.getElementById("toast");
+  clearTimeout(_toastTimer);
+  t.className="show "+(ok?"ok":"err");
+  t.textContent=msg||"";
+  _toastTimer=setTimeout(()=>{t.className="";},4000);
 }
 async function postAction(path,payload){
-  setAction("working...",true);
+  setAction("working…",true);
   try{
     const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     const d=await r.json();
@@ -523,13 +531,26 @@ async function postAction(path,payload){
     await poll();
   }catch(e){setAction("action failed: "+e,false);}
 }
+function pullModel(btn,model){
+  btn.disabled=true;btn.textContent="Pulling…";
+  postAction("/api/actions/ollama",{action:"pull",model:model});
+}
 function serviceButtons(name){
-  return `<span class="btn-row"><button onclick="postAction('/api/actions/service',{service:'${name}',action:'start'})">Start</button><button onclick="postAction('/api/actions/service',{service:'${name}',action:'stop'})">Stop</button><button onclick="postAction('/api/actions/service',{service:'${name}',action:'restart'})">Restart</button></span>`;
+  return `<span class="btn-row"><button class="btn-primary" onclick="postAction('/api/actions/service',{service:'${name}',action:'start'})">Start</button><button class="btn-ghost" onclick="postAction('/api/actions/service',{service:'${name}',action:'stop'})">Stop</button><button class="btn-icon" title="Restart" onclick="postAction('/api/actions/service',{service:'${name}',action:'restart'})">&#x21BA;</button></span>`;
 }
 function modelButtons(name,loaded){
   const m=encodeURIComponent(name);
-  const unload=loaded?`<button onclick="postAction('/api/actions/ollama',{action:'unload',model:decodeURIComponent('${m}')})">Unload</button>`:"";
-  return `<span class="btn-row"><button onclick="postAction('/api/actions/ollama',{action:'warmup',model:decodeURIComponent('${m}')})">Load</button>${unload}</span>`;
+  const unload=loaded?`<button class="btn-ghost" onclick="postAction('/api/actions/ollama',{action:'unload',model:decodeURIComponent('${m}')})">Unload</button>`:"";
+  return `<span class="btn-row"><button class="btn-primary" onclick="postAction('/api/actions/ollama',{action:'warmup',model:decodeURIComponent('${m}')})">Load</button>${unload}</span>`;
+}
+function renderBanner(d){
+  const b=document.getElementById("setup-banner");
+  if(ctl(d)&&!d.ollama?.reachable){
+    b.innerHTML=`<div><span style="color:var(--red)">&#x25CF; Ollama is not running</span><br><span style="color:var(--dim);font-size:12px">Start the service to use models and controls.</span></div><button class="btn-primary" onclick="postAction('/api/actions/service',{service:'ollama',action:'start'})">Start Ollama</button>`;
+    b.classList.add("visible");
+  }else{
+    b.innerHTML="";b.classList.remove("visible");
+  }
 }
 function renderSvc(d){
   let h="",controls=ctl(d);
@@ -545,11 +566,11 @@ function renderGPU(d){
   const g=d.gpu;
   if(!g?.available){document.getElementById("gpu").innerHTML='<span class="na">unavailable</span>';return;}
   const u=(g.vram_used_mib/1024).toFixed(1),t=(g.vram_total_mib/1024).toFixed(1);
-  document.getElementById("gpu").innerHTML=`<div class="gpu-name">${esc(g.name)}</div><div class="metric-block"><div class="metric-label"><span>VRAM</span><span class="metric-value">${u} / ${t} GB</span></div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter></div><div class="gpu-stats">Utilization ${esc(g.utilization_pct)}% &nbsp;·&nbsp; Temperature ${esc(g.temp_c)}°C</div>`;
+  document.getElementById("gpu").innerHTML=`<div class="gpu-name">${esc(g.name)}</div><div class="metric-block"><div class="metric-label"><span>VRAM</span><span class="metric-value">${u} / ${t} GB</span></div><meter value="${g.vram_used_mib}" min="0" max="${g.vram_total_mib}"></meter></div><div class="gpu-stats">Utilization ${esc(g.utilization_pct)}% &nbsp;&middot;&nbsp; Temperature ${esc(g.temp_c)}&deg;C</div>`;
 }
 function renderSys(d){
-  const s=d.system;
-  let h="";
+  const s=d.system;let h="";
+  if(s?.cpu?.model){h+=`<div class="mono" style="font-size:12px;color:#d8dee2;margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.cpu.model)}</div>`;}
   if(s?.ram?.available){
     const u=(s.ram.used_mib/1024).toFixed(1),t=(s.ram.total_mib/1024).toFixed(1);
     h+=`<div class="metric-block"><div class="metric-label"><span>RAM</span><span class="metric-value">${u} / ${t} GB used</span></div><meter value="${s.ram.used_mib}" min="0" max="${s.ram.total_mib}"></meter></div>`;
@@ -559,16 +580,42 @@ function renderSys(d){
   }else{h+='<div class="gpu-stats" style="margin-top:10px">CPU unavailable</div>';}
   document.getElementById("sys").innerHTML=h;
 }
+function renderStorage(d){
+  const s=d.storage;
+  if(!s){document.getElementById("sto").innerHTML='<span class="na">unavailable</span>';return;}
+  let h="";
+  for(const[label,entry] of Object.entries(s)){
+    if(!entry.available)continue;
+    const used=(entry.used_bytes/1e9).toFixed(1),total=(entry.total_bytes/1e9).toFixed(1);
+    const pct=entry.used_bytes/entry.total_bytes;
+    const warn=pct>0.85?" class=\"warn\"":" ";
+    h+=`<div class="metric-block"><div class="metric-label"><span>${esc(label)}</span><span class="metric-value">${used} / ${total} GB</span></div><meter${warn}value="${entry.used_bytes}" min="0" max="${entry.total_bytes}"></meter></div>`;
+  }
+  document.getElementById("sto").innerHTML=h||'<span class="na">unavailable</span>';
+}
 function renderMdl(d){
-  const o=d.ollama;
+  const o=d.ollama,controls=ctl(d);
   if(!o?.reachable){document.getElementById("mdl").innerHTML='<span class="na">Ollama unreachable</span>';return;}
-  if(!o.models?.length){document.getElementById("mdl").innerHTML='<span class="na">no models pulled</span>';return;}
+  if(!o.models?.length){
+    if(controls){
+      let h='<div class="setup-step"><span class="step-done">&#x2713;</span>Ollama running</div>';
+      h+='<div class="setup-step"><span class="step-now">2</span>No models pulled &mdash; pull one to get started</div>';
+      h+='<div class="suggested-models">';
+      for(const m of SUGGESTED){
+        h+=`<div class="mdl-row"><span class="mono">${esc(m.name)}</span><span class="sz">${esc(m.size)} &middot; ${esc(m.desc)}</span><button class="btn-primary" onclick="pullModel(this,'${esc(m.name)}')">Pull</button></div>`;
+      }
+      h+='</div>';
+      document.getElementById("mdl").innerHTML=h;
+    }else{
+      document.getElementById("mdl").innerHTML='<span class="na">no models pulled</span>';
+    }
+    return;
+  }
   const rm=new Map((o.running||[]).map(r=>[r.name,r]));
-  const controls=ctl(d);
   let h='<table><thead><tr><th>Model</th><th>Size</th><th>Status</th>'+(controls?'<th>Actions</th>':'')+'</tr></thead><tbody>';
   for(const m of o.models){
     const r=rm.get(m.name);
-    const badge=r?`<span class="badge">loaded · ${r.vram_mib} MiB</span>`:"";
+    const badge=r?`<span class="badge">loaded &middot; ${r.vram_mib} MiB</span>`:"";
     h+=`<tr><td class="mono">${esc(m.name)}</td><td class="right">${esc(m.size_gb)} GB</td><td class="right">${badge}</td>${controls?`<td class="right actions">${modelButtons(m.name,!!r)}</td>`:""}</tr>`;
   }
   h+="</tbody></table>";
@@ -583,8 +630,8 @@ async function poll(){
     const mode=document.getElementById("mode");
     mode.textContent=ctl(d)?"controls on":"read-only";
     mode.className="mode "+(ctl(d)?"on":"info");
-    document.getElementById("action").style.display=ctl(d)?"":"none";
-    renderSvc(d);renderGPU(d);renderSys(d);renderMdl(d);
+    renderBanner(d);
+    renderSvc(d);renderGPU(d);renderSys(d);renderStorage(d);renderMdl(d);
   }catch(e){console.error(e);document.getElementById("ts").textContent="fetch failed";}
 }
 poll();setInterval(poll,5000);
