@@ -79,12 +79,22 @@ Important docs:
 - [`context-memory.md`](context-memory.md) explains context windows, KV cache, and durable project memory.
 - [`models.md`](models.md) explains what model families are useful for.
 - [`hardware-matching.md`](hardware-matching.md) matches model choices to hardware tiers.
+- [`portable-ssd.md`](portable-ssd.md) explains running Ollama from a removable SSD.
 - [`cline.md`](cline.md) covers Cline with llama.cpp or Ollama.
 - [`copilot.md`](copilot.md) covers Copilot Chat/CLI with Ollama.
 
 ## Services
 
 Ollama uses its normal `ollama.service`, with `OLLAMA_MODELS` configured to the path above.
+
+For removable SSD use, prefer the foreground launcher instead of a service:
+
+```bash
+./scripts/ollama/portable-serve.sh
+```
+
+The launcher can use either a host-installed `ollama` or a compatible binary
+copied onto the SSD with `./scripts/ollama/install-portable-ollama.sh`.
 
 `llama-cline.service` is generated from `systemd/llama-cline.service.in`. The installer fills in the current repo path and service user, installs to `/etc/systemd/system/llama-cline.service`, reloads systemd, and keeps the unit disabled.
 

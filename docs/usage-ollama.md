@@ -31,6 +31,30 @@ export OLLAMA_MODELS
 ollama serve
 ```
 
+## Portable SSD Server
+
+For a removable SSD, use the portable launcher:
+
+```bash
+./scripts/ollama/portable-serve.sh
+```
+
+It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
+and prefers a bundled SSD binary at `../bin/ollama/<os>-<arch>/ollama`. If no
+bundled binary exists, it falls back to the host's `ollama` on `PATH`.
+
+To put the current host's Ollama binary on the SSD:
+
+```bash
+./scripts/ollama/install-portable-ollama.sh
+```
+
+Use a separate port when the host already has an Ollama service:
+
+```bash
+OLLAMA_HOST=127.0.0.1:11435 ./scripts/ollama/portable-serve.sh
+```
+
 ## Service Basics
 
 The systemd service is optional.
