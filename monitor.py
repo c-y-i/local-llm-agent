@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Read-only LLM stack monitor. Run with: python3 monitor.py"""
 import json
+import os
 import socket
 import subprocess
 import urllib.request
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 
 
 # ---------------------------------------------------------------------------
@@ -90,3 +94,63 @@ def get_ollama():
         running = []
 
     return {"reachable": True, "models": models, "running": running}
+
+
+# ---------------------------------------------------------------------------
+# Aggregator
+# ---------------------------------------------------------------------------
+
+def build_status():
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "services": get_services(),
+        "ports": probe_ports(),
+        "gpu": get_gpu(),
+        "ollama": get_ollama(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# HTTP server
+# ---------------------------------------------------------------------------
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
+class MonitorHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass  # suppress per-request logs
+
+    def do_GET(self):
+        if self.path == "/":
+            body = DASHBOARD_HTML.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/api/status":
+            body = json.dumps(build_status()).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+
+def main():
+    port = int(os.environ.get("MONITOR_PORT", "8765"))
+    server = ThreadedHTTPServer(("", port), MonitorHandler)
+    print(f"LLM Monitor → http://localhost:{port}  (Ctrl+C to stop)")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
