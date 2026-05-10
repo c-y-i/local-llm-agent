@@ -39,6 +39,13 @@ For a removable drive, use the Portable LLM Launcher:
 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
+The convenience wrapper uses the same launcher and defaults to
+`OLLAMA_HOST=127.0.0.1:14514`, which avoids the normal Ollama service port:
+
+```bash
+./scripts/ollama/llm-portable.sh
+```
+
 It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
 and prefers a bundled binary at `../bin/ollama/<os>-<arch>/ollama[.exe]`. If no
 bundled binary exists, it falls back to the host's `ollama` on `PATH`.
@@ -52,7 +59,7 @@ To put the current host's Ollama binary on the removable drive:
 Use a separate port when the host already has an Ollama service:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:11435 ./scripts/ollama/portable-llm-launcher.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 Windows users can start the same layout with:

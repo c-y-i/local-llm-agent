@@ -67,6 +67,21 @@ cd /path/to/portable-drive/local-llm-agent
 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
+For day-to-day use on a host that may already have Ollama on port `11434`, the
+short wrapper defaults to port `14514`:
+
+```bash
+./scripts/ollama/llm-portable.sh
+```
+
+To make it a shell command, add a function like this to `~/.bashrc`:
+
+```bash
+function llm-portable() {
+  /path/to/portable-drive/local-llm-agent/scripts/ollama/llm-portable.sh "$@"
+}
+```
+
 Windows Command Prompt:
 
 ```bat
@@ -91,21 +106,21 @@ OLLAMA_HOST=127.0.0.1:11434 ollama run qwen3:4b
 If the host already has Ollama running on `11434`, use a different port:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:11435 ./scripts/ollama/portable-llm-launcher.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:OLLAMA_HOST="127.0.0.1:11435"
+$env:OLLAMA_HOST="127.0.0.1:14514"
 .\scripts\ollama\portable-llm-launcher.ps1
 ```
 
 Then query that port:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:11435 ollama list
-OLLAMA_HOST=127.0.0.1:11435 ollama run qwen3:30b
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:30b
 ```
 
 ## Model Choice
