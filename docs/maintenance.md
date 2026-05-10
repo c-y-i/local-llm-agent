@@ -1,5 +1,7 @@
 # Maintenance
 
+English | [简体中文](maintenance.zh-CN.md)
+
 ## Add Models
 
 Pull from Ollama and share the GGUF with llama.cpp:

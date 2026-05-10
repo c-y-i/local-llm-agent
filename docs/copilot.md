@@ -1,5 +1,7 @@
 # Copilot With Ollama
 
+English | [简体中文](copilot.zh-CN.md)
+
 This repo is not only for Cline. A good default split is:
 
 - Cline -> llama.cpp when you want tight control over GGUF files and context.

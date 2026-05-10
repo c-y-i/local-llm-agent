@@ -1,5 +1,7 @@
 # Setup
 
+English | [简体中文](setup.zh-CN.md)
+
 This project is a locally deployable LLM agent workspace with flexible
 deployment options: native host or portable drive, with optional Ollama
 binaries for other hosts.

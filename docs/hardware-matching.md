@@ -1,5 +1,7 @@
 # Hardware Matching
 
+English | [简体中文](hardware-matching.zh-CN.md)
+
 Use this guide to choose a first model set for a target machine. The root [`README.md`](../README.md) has the high-level hardware tier table; this page gives concrete machines and starter choices.
 
 For Ollama, use:

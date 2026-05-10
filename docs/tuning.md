@@ -1,5 +1,7 @@
 # Tuning
 
+English | [简体中文](tuning.zh-CN.md)
+
 Tuning here means changing runtime parameters, Ollama Modelfiles, or reusable personality definitions.
 
 ## Common Parameters

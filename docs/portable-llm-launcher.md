@@ -1,5 +1,7 @@
 # Portable LLM Launcher
 
+English | [简体中文](portable-llm-launcher.zh-CN.md)
+
 This project supports portable drive deployment as an optional target. The same
 repo layout can run on the native host with `./scripts/ollama/serve.sh`, or
 move between hosts with the Ollama model store and optional OS-specific Ollama
@@ -67,20 +69,46 @@ This section is only for the portable drive workflow. For native host use,
 use [`usage-ollama.md`](usage-ollama.md) and
 `./scripts/ollama/serve.sh` instead.
 
-### Recommended Command
+### Command Flow
 
-Linux or macOS:
+Run these from the portable drive repo:
 
 ```bash
 cd /path/to/portable-drive/local-llm-agent
+
+# Optional: copy the host's Ollama binary onto the drive.
+# This does not start Ollama.
+./scripts/ollama/install-portable-llm-binary.sh
+
+# Install the short shell command once.
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
+
+# Start the portable Ollama server on 127.0.0.1:14514.
 llm-portable
 ```
 
-The setup script adds or updates a `llm-portable` function in `~/.bashrc`.
-It uses the current repo path, so run it from the drive after cloning or
-pulling this repo there.
+In another terminal:
+
+```bash
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+```
+
+Script roles:
+
+| Script | What it does | Starts Ollama? |
+|---|---|---|
+| `install-portable-llm-binary.sh` | Copies an Ollama executable into `../bin/ollama/<os>-<arch>/` | No |
+| `install-llm-portable-command.sh` | Adds or updates the `llm-portable` shell command in `~/.bashrc` | No |
+| `llm-portable.sh` / `llm-portable` | Starts the portable Ollama server with `OLLAMA_HOST=127.0.0.1:14514` | Yes |
+| `portable-llm-launcher.sh` | Low-level launcher; defaults to `11434` unless `OLLAMA_HOST` is set | Yes |
+
+### Command Notes
+
+`install-llm-portable-command.sh` adds or updates a `llm-portable` function in
+`~/.bashrc`. It uses the current repo path, so run it from the drive after
+cloning or pulling this repo there.
 
 If the drive is unplugged, the shell function remains in `~/.bashrc` but does
 nothing until called. If you call it while the drive is missing, it prints a
@@ -104,17 +132,6 @@ You can also run the wrapper directly:
 
 ```bash
 ./scripts/ollama/llm-portable.sh
-```
-
-`llm-portable.sh` is the short wrapper for day-to-day use. It defaults to
-`OLLAMA_HOST=127.0.0.1:14514`, which avoids the default Ollama service port
-`11434`.
-
-In another terminal:
-
-```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 ```
 
 The setup script installs this shell function:

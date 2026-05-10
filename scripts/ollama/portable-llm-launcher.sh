@@ -74,7 +74,10 @@ Port ${port} is already in use:
   ${listener}
 
 Use a different port, for example:
-  OLLAMA_HOST=127.0.0.1:11435 $0
+  OLLAMA_HOST=127.0.0.1:14514 $0
+
+For the usual portable-drive workflow on Linux/macOS, run:
+  ${SCRIPT_DIR}/llm-portable.sh
 EOF
     exit 1
   fi

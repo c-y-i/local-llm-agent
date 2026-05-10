@@ -1,5 +1,7 @@
 # Control Panel & Monitor
 
+English | [简体中文](control-panel.zh-CN.md)
+
 Two single-file Python dashboards — no dependencies beyond stdlib.
 
 | | Control Panel | Monitor |

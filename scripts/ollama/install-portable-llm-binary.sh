@@ -18,6 +18,9 @@ Copies an Ollama executable into:
 
 If --from is omitted, the script uses the first "ollama" found on PATH.
 If --os/--arch are omitted, they are detected from the current machine.
+
+This only stages the Ollama binary on the portable drive. It does not start
+Ollama. Use llm-portable for the normal portable startup flow.
 EOF
 }
 
@@ -115,12 +118,19 @@ chmod +x "$dest" 2>/dev/null || true
 echo "Portable LLM Launcher binary copied:"
 echo "  ${dest}"
 echo
-echo "Start with:"
+echo "This only copied the Ollama binary; it did not start Ollama."
+echo
+echo "Start the portable runtime with:"
 case "$target_os" in
   windows)
     echo "  ${LOCAL_LLM_AGENT_ROOT}/scripts/ollama/portable-llm-launcher.cmd"
     ;;
   *)
-    echo "  ${LOCAL_LLM_AGENT_ROOT}/scripts/ollama/portable-llm-launcher.sh"
+    echo "  ${LOCAL_LLM_AGENT_ROOT}/scripts/ollama/llm-portable.sh"
+    echo
+    echo "Or install the shell command once:"
+    echo "  ${LOCAL_LLM_AGENT_ROOT}/scripts/setup/install-llm-portable-command.sh"
+    echo "  source ~/.bashrc"
+    echo "  llm-portable"
     ;;
 esac

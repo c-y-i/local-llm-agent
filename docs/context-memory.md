@@ -1,5 +1,7 @@
 # Context And Memory
 
+English | [简体中文](context-memory.zh-CN.md)
+
 Local agent setups use several different things that people casually call "memory." They behave differently.
 
 ## Types Of Memory

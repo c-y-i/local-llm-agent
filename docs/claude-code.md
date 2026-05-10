@@ -1,5 +1,7 @@
 # Claude Code With Ollama
 
+English | [简体中文](claude-code.zh-CN.md)
+
 Claude Code is Anthropic's CLI coding agent. It speaks Anthropic's Messages
 API format, which Ollama does not implement directly. This repo uses a small
 local Anthropic-compatible proxy between Claude Code and Ollama.

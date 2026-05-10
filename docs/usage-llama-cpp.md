@@ -1,5 +1,7 @@
 # Using llama.cpp
 
+English | [简体中文](usage-llama-cpp.zh-CN.md)
+
 These commands use the portable defaults from `scripts/common/env.sh`.
 
 ## List Models

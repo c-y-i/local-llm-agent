@@ -1,5 +1,7 @@
 # claude-local Launcher
 
+English | [简体中文](claude-local.zh-CN.md)
+
 `claude-local` is the day-to-day launcher for Claude Code against local Ollama
 models.
 

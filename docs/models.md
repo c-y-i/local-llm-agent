@@ -1,5 +1,7 @@
 # Models
 
+English | [简体中文](models.zh-CN.md)
+
 This is an example catalog of model families and what they are generally useful for in a local-agent workspace. It intentionally does not try to match models to hardware; use [`hardware-matching.md`](hardware-matching.md) for that.
 
 Your installed models are whatever appears in:

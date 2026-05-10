@@ -1,5 +1,7 @@
 # Claude Code Proxy Internals
 
+English | [简体中文](claude-proxy.zh-CN.md)
+
 This repo uses `scripts/ollama/anthropic-proxy.py` to let Claude Code talk to
 local Ollama models.
 

@@ -36,8 +36,16 @@ python3 control_panel.py               # 浏览器界面  →  http://localhost:
 
 ```bash
 cd /path/to/portable-drive/local-llm-agent
+
+# 可选：把宿主机上的 Ollama 二进制复制到移动硬盘。
+# 这一步不会启动 Ollama。
+./scripts/ollama/install-portable-llm-binary.sh
+
+# 首次安装 llm-portable 命令。
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
+
+# 在 127.0.0.1:14514 启动便携 Ollama 服务。
 llm-portable
 ```
 
@@ -54,7 +62,15 @@ OLLAMA_HOST=127.0.0.1:14514 ollama list
 OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 ```
 
-完整说明：[`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
+脚本职责：
+
+| 脚本 | 作用 |
+|---|---|
+| `install-portable-llm-binary.sh` | 把 Ollama 可执行文件复制到移动硬盘；不会启动 Ollama |
+| `install-llm-portable-command.sh` | 把 `llm-portable` shell 命令写入 `~/.bashrc` |
+| `llm-portable.sh` / `llm-portable` | 在 `127.0.0.1:14514` 启动便携 Ollama 服务 |
+
+完整说明：[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md)
 
 ## 仪表盘
 
@@ -78,7 +94,7 @@ python3 control_panel.py
 python3 monitor.py
 ```
 
-完整说明：[`docs/control-panel.md`](docs/control-panel.md)
+完整说明：[`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md)
 
 ## Agent 集成
 
@@ -97,7 +113,7 @@ python3 monitor.py
 
 <img src="media/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
 
-完整说明：[`docs/cline.md`](docs/cline.md)
+完整说明：[`docs/cline.zh-CN.md`](docs/cline.zh-CN.md)
 
 ### Claude Code
 
@@ -109,7 +125,7 @@ claude-local   # 模型选择器 — 已加载的模型置顶，标记为 RUNNIN
 
 <img src="media/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
 
-完整说明：[`docs/claude-local.md`](docs/claude-local.md)、[`docs/claude-code.md`](docs/claude-code.md)、[`docs/claude-proxy.md`](docs/claude-proxy.md)
+完整说明：[`docs/claude-local.zh-CN.md`](docs/claude-local.zh-CN.md)、[`docs/claude-code.zh-CN.md`](docs/claude-code.zh-CN.md)、[`docs/claude-proxy.zh-CN.md`](docs/claude-proxy.zh-CN.md)
 
 ### Copilot
 
@@ -122,7 +138,7 @@ ollama pull qwen2.5-coder:7b
 
 <img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
 
-完整说明：[`docs/copilot.md`](docs/copilot.md)
+完整说明：[`docs/copilot.zh-CN.md`](docs/copilot.zh-CN.md)
 
 ## 目录结构
 
@@ -133,24 +149,24 @@ ollama pull qwen2.5-coder:7b
   Ollama/            # Ollama 模型存储
 ```
 
-所有路径均可通过环境变量覆盖。大型模型文件（GGUF、Ollama blobs）已加入 `.gitignore`。完整的环境变量说明与服务配置见 [`docs/setup.md`](docs/setup.md)。
+所有路径均可通过环境变量覆盖。大型模型文件（GGUF、Ollama blobs）已加入 `.gitignore`。完整的环境变量说明与服务配置见 [`docs/setup.zh-CN.md`](docs/setup.zh-CN.md)。
 
 ## 文档索引
 
 | 文档 | 说明 |
 |---|---|
-| [`docs/setup.md`](docs/setup.md) | 目录结构、环境变量、服务配置与安装流程 |
-| [`docs/control-panel.md`](docs/control-panel.md) | 控制面板与监控面板 — 使用说明与环境变量 |
-| [`docs/hardware-matching.md`](docs/hardware-matching.md) | 按硬件配置推荐模型 |
-| [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md) | 便携式 LLM 启动器：本机/便携模式用法 |
-| [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/服务端用法 |
-| [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama 服务与 API 用法 |
-| [`docs/cline.md`](docs/cline.md) | Cline 集成与故障排查 |
-| [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI 连接 Ollama |
-| [`docs/claude-local.md`](docs/claude-local.md) | `claude-local` 启动器和模型选择器 |
-| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI 连接 Ollama |
-| [`docs/claude-proxy.md`](docs/claude-proxy.md) | 本地 Anthropic proxy 原理 |
-| [`docs/context-memory.md`](docs/context-memory.md) | 上下文窗口、KV cache、持久化记忆 |
-| [`docs/models.md`](docs/models.md) | 各模型系列及适用场景 |
-| [`docs/maintenance.md`](docs/maintenance.md) | 模型的添加/删除/检查/更新 |
-| [`docs/tuning.md`](docs/tuning.md) | 参数调优与 Modelfile 工作流 |
+| [`docs/setup.zh-CN.md`](docs/setup.zh-CN.md) | 目录结构、环境变量、服务配置与安装流程 |
+| [`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md) | 控制面板与监控面板 — 使用说明与环境变量 |
+| [`docs/hardware-matching.zh-CN.md`](docs/hardware-matching.zh-CN.md) | 按硬件配置推荐模型 |
+| [`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md) | 便携式 LLM 启动器：本机/便携模式用法 |
+| [`docs/usage-llama-cpp.zh-CN.md`](docs/usage-llama-cpp.zh-CN.md) | llama.cpp CLI/服务端用法 |
+| [`docs/usage-ollama.zh-CN.md`](docs/usage-ollama.zh-CN.md) | Ollama 服务与 API 用法 |
+| [`docs/cline.zh-CN.md`](docs/cline.zh-CN.md) | Cline 集成与故障排查 |
+| [`docs/copilot.zh-CN.md`](docs/copilot.zh-CN.md) | Copilot Chat/CLI 连接 Ollama |
+| [`docs/claude-local.zh-CN.md`](docs/claude-local.zh-CN.md) | `claude-local` 启动器和模型选择器 |
+| [`docs/claude-code.zh-CN.md`](docs/claude-code.zh-CN.md) | Claude Code CLI 连接 Ollama |
+| [`docs/claude-proxy.zh-CN.md`](docs/claude-proxy.zh-CN.md) | 本地 Anthropic proxy 原理 |
+| [`docs/context-memory.zh-CN.md`](docs/context-memory.zh-CN.md) | 上下文窗口、KV cache、持久化记忆 |
+| [`docs/models.zh-CN.md`](docs/models.zh-CN.md) | 各模型系列及适用场景 |
+| [`docs/maintenance.zh-CN.md`](docs/maintenance.zh-CN.md) | 模型的添加/删除/检查/更新 |
+| [`docs/tuning.zh-CN.md`](docs/tuning.zh-CN.md) | 参数调优与 Modelfile 工作流 |

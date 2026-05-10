@@ -1,5 +1,7 @@
 # Cline Integration
 
+English | [简体中文](cline.zh-CN.md)
+
 Recommended path for GGUF files: Cline -> OpenAI-compatible provider -> local llama.cpp server.
 
 Ollama also works, especially when you want to use installed Ollama tags directly.

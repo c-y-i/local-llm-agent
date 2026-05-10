@@ -34,8 +34,16 @@ Native host setups can keep using `./scripts/ollama/serve.sh`.
 
 ```bash
 cd /path/to/portable-drive/local-llm-agent
+
+# Optional: copy the host's Ollama binary onto the drive.
+# This does not start Ollama.
+./scripts/ollama/install-portable-llm-binary.sh
+
+# Install the short shell command once.
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
+
+# Start the portable Ollama server on 127.0.0.1:14514.
 llm-portable
 ```
 
@@ -51,6 +59,14 @@ In another terminal:
 OLLAMA_HOST=127.0.0.1:14514 ollama list
 OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 ```
+
+Script roles:
+
+| Script | What it does |
+|---|---|
+| `install-portable-llm-binary.sh` | Copies an Ollama executable to the drive; does not start Ollama |
+| `install-llm-portable-command.sh` | Adds the `llm-portable` shell command to `~/.bashrc` |
+| `llm-portable.sh` / `llm-portable` | Starts the portable Ollama server on `127.0.0.1:14514` |
 
 Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
 

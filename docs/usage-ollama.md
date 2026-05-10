@@ -1,5 +1,7 @@
 # Using Ollama
 
+English | [简体中文](usage-ollama.zh-CN.md)
+
 Ollama is optional, but useful for pulling models, running non-Cline chats, and maintaining a shared model store.
 
 ## Manual Server
