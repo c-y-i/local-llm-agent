@@ -19,7 +19,7 @@ ollama run qwen3:1.7b
 
 Verification: `ollama list` should show local models, and `ollama run <model>` should open a terminal chat:
 
-![Terminal showing Ollama service status, model list, and an ollama run chat](ollama_service.png)
+![Terminal showing Ollama service status, model list, and an ollama run chat](../media/ollama_service.png)
 
 Do not run plain `ollama serve` unless you also set `OLLAMA_MODELS`; otherwise the daemon may use an empty default store and `ollama run <tag>` will pull instead of using this workspace's models.
 
@@ -33,14 +33,14 @@ ollama serve
 
 ## Portable LLM Launcher
 
-For a removable drive, use the Portable LLM Launcher:
+For a portable drive, use the Portable LLM Launcher:
 
 ```bash
 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 The convenience wrapper uses the same launcher and defaults to
-`OLLAMA_HOST=127.0.0.1:14514`, which avoids the normal Ollama service port:
+`OLLAMA_HOST=127.0.0.1:14514`, which avoids the default Ollama service port:
 
 ```bash
 ./scripts/ollama/llm-portable.sh
@@ -50,7 +50,7 @@ It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
 and prefers a bundled binary at `../bin/ollama/<os>-<arch>/ollama[.exe]`. If no
 bundled binary exists, it falls back to the host's `ollama` on `PATH`.
 
-To put the current host's Ollama binary on the removable drive:
+To put the current host's Ollama binary on the portable drive:
 
 ```bash
 ./scripts/ollama/install-portable-llm-binary.sh

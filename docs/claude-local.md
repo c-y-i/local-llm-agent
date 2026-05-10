@@ -32,7 +32,7 @@ Run `claude-local` with no `--model` argument to open the picker:
 claude-local
 ```
 
-<img src="claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
+<img src="../media/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
 
 The picker reads:
 

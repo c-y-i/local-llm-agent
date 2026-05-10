@@ -10,7 +10,7 @@ Two single-file Python dashboards — no dependencies beyond stdlib.
 | Load / unload / pull models | yes | — |
 | Read-only status view | yes | yes |
 
-<img src="dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+<img src="../media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
 
 ## Running
 

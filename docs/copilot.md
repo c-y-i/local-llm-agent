@@ -19,7 +19,7 @@ ollama launch vscode
 
 Then open Copilot Chat in VS Code and select a local Ollama model from the model picker. Make sure the model is marked local if VS Code shows both local and cloud choices.
 
-![VS Code Language Models picker showing Ollama models](copilot_ollama.png)
+![VS Code Language Models picker showing Ollama models](../media/copilot_ollama.png)
 
 Manual setup in VS Code:
 

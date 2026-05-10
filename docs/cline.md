@@ -70,7 +70,7 @@ If your Cline build uses OpenAI-compatible settings for Ollama, use `http://127.
 
 When Cline is connected to Ollama, the chat panel should show the local model and run tasks normally:
 
-![Cline running with a local Ollama model](cline_demo.png)
+![Cline running with a local Ollama model](../media/cline_demo.png)
 
 ## Model Context Defaults
 

@@ -2,7 +2,16 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Locally deployable LLM sandbox — run models on your own hardware and plug into agent workflows. Full control, private, and no token limits.
+Locally deployable LLM agent workspace — run models on your own hardware and
+plug them into agent workflows. Supports flexible deployment options: native
+host or portable drive. Full control, private, and no token limits.
+
+## Deployment Options
+
+| Mode | Use it when | Start command |
+|---|---|---|
+| Native host | The model store and services live on this computer | `./scripts/ollama/serve.sh` |
+| Portable drive | The repo and model store move between computers | `llm-portable` or `./scripts/ollama/llm-portable.sh` |
 
 ## Quick Start
 
@@ -14,6 +23,36 @@ python3 control_panel.py               # browser UI  →  http://localhost:8766
 # — or —
 ./scripts/ollama/serve.sh && ollama run qwen3:4b
 ```
+
+## Portable Drive
+
+Portable support is optional. Use it when this repo is on a portable drive and
+the host may already have Ollama running on `11434`. `llm-portable` starts a
+foreground Ollama server with the portable model store on `127.0.0.1:14514`.
+
+Native host setups can keep using `./scripts/ollama/serve.sh`.
+
+```bash
+cd /path/to/portable-drive/local-llm-agent
+./scripts/setup/install-llm-portable-command.sh
+source ~/.bashrc
+llm-portable
+```
+
+Or run the wrapper directly:
+
+```bash
+./scripts/ollama/llm-portable.sh
+```
+
+In another terminal:
+
+```bash
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+```
+
+Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
 
 ## Dashboard
 
@@ -27,7 +66,7 @@ Full service and model controls at `http://localhost:8766`.
 python3 control_panel.py
 ```
 
-<img src="docs/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
 
 ### Monitor
 
@@ -54,7 +93,7 @@ Connect to llama.cpp for direct GGUF control:
 
 Or connect directly to Ollama (`API Provider: Ollama`, Base URL `http://127.0.0.1:11434`).
 
-<img src="docs/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
+<img src="media/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
 
 Full guide: [`docs/cline.md`](docs/cline.md)
 
@@ -66,7 +105,7 @@ sudo systemctl start litellm-proxy
 claude-local   # model picker — loaded models shown first, marked RUNNING
 ```
 
-<img src="docs/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
+<img src="media/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
 
 Full guides: [`docs/claude-local.md`](docs/claude-local.md), [`docs/claude-code.md`](docs/claude-code.md), [`docs/claude-proxy.md`](docs/claude-proxy.md)
 
@@ -79,7 +118,7 @@ ollama pull qwen2.5-coder:7b
 
 Then select the local model in VS Code Copilot Chat.
 
-<img src="docs/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
+<img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
 
 Full guide: [`docs/copilot.md`](docs/copilot.md)
 

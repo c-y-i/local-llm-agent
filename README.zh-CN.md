@@ -2,36 +2,77 @@
 
 [English](README.md) | 简体中文
 
-本地可部署的 LLM 实验环境——在自己的机器上跑模型，接入 agent 工作流。自主可控，数据留本地，不限 token。
+本地化部署的 LLM agent 工作区——在自有硬件上运行模型，对接 agent 工作流。支持两种部署模式：本机部署和移动硬盘便携部署。数据完全自主可控，无 token 限制，隐私安全。
+
+## 部署模式
+
+| 模式 | 适用场景 | 启动命令 |
+|---|---|---|
+| 本机部署 | 模型存储和服务固定在一台机器上 | `./scripts/ollama/serve.sh` |
+| 便携部署 | 仓库和模型需要在多台机器间移动使用 | `llm-portable` 或 `./scripts/ollama/llm-portable.sh` |
 
 ## 快速开始
 
 ```bash
-./scripts/setup/check-prereqs.sh       # 检查依赖
-./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次）
+./scripts/setup/check-prereqs.sh       # 检查依赖项
+./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次执行）
 
-python3 control_panel.py               # 浏览器 UI  →  http://localhost:8766
-# — 或 —
+python3 control_panel.py               # 浏览器界面  →  http://localhost:8766
+# 或者
 ./scripts/ollama/serve.sh && ollama run qwen3:4b
 ```
 
-## 控制台
+## 便携部署
 
-纯 Python stdlib，无需任何依赖。
+便携功能是可选的。适用于将本仓库放在移动硬盘或 U 盘上使用的场景，同时宿主机可能已有 Ollama 占用 `11434` 端口。执行 `llm-portable` 会前台启动 Ollama 服务，并将移动硬盘上的模型目录绑定到 `127.0.0.1:14514`。
+
+本机部署继续使用：
+
+```bash
+./scripts/ollama/serve.sh
+```
+
+便携部署首次配置：
+
+```bash
+cd /path/to/portable-drive/local-llm-agent
+./scripts/setup/install-llm-portable-command.sh
+source ~/.bashrc
+llm-portable
+```
+
+也可以直接运行封装脚本：
+
+```bash
+./scripts/ollama/llm-portable.sh
+```
+
+在另一个终端中使用同一端口：
+
+```bash
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+```
+
+完整说明：[`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
+
+## 仪表盘
+
+纯 Python 标准库实现，无任何外部依赖。
 
 ### 控制面板
 
-完整服务和模型控制，访问 `http://localhost:8766`。
+完整服务与模型控制，访问 `http://localhost:8766`。
 
 ```bash
 python3 control_panel.py
 ```
 
-<img src="docs/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
 
 ### 监控面板
 
-只读状态视图，访问 `http://localhost:8765`，适合在共享机器上安全暴露。
+只读状态视图，访问 `http://localhost:8765`，适合在多用户共享机器上安全暴露服务状态。
 
 ```bash
 python3 monitor.py
@@ -39,22 +80,22 @@ python3 monitor.py
 
 完整说明：[`docs/control-panel.md`](docs/control-panel.md)
 
-## Agents
+## Agent 集成
 
 ### Cline
 
-连接 llama.cpp，直接控制 GGUF 文件和上下文：
+连接 llama.cpp，直接管理 GGUF 文件和上下文：
 
-| 字段 | 值 |
+| 配置项 | 参数值 |
 |---|---|
 | API Provider | `OpenAI Compatible` |
 | Base URL | `http://127.0.0.1:8080/v1` |
 | API Key | `114514` |
-| Model ID / Context | `./scripts/llama-cpp/cline-server.sh` 启动时打印 |
+| Model ID / Context | `./scripts/llama-cpp/cline-server.sh` 启动时会打印 |
 
-也可以直接连 Ollama（`API Provider: Ollama`，Base URL `http://127.0.0.1:11434`）。
+也可以直接对接 Ollama（`API Provider: Ollama`，Base URL `http://127.0.0.1:11434`）。
 
-<img src="docs/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
+<img src="media/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
 
 完整说明：[`docs/cline.md`](docs/cline.md)
 
@@ -63,10 +104,10 @@ python3 monitor.py
 ```bash
 ./scripts/ollama/serve.sh
 sudo systemctl start litellm-proxy
-claude-local   # 模型选择器 — 已加载的模型排在最上面，标记为 RUNNING
+claude-local   # 模型选择器 — 已加载的模型置顶，标记为 RUNNING
 ```
 
-<img src="docs/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
+<img src="media/claude_local_menu.png" alt="claude-local model picker showing loaded Ollama models first" width="720">
 
 完整说明：[`docs/claude-local.md`](docs/claude-local.md)、[`docs/claude-code.md`](docs/claude-code.md)、[`docs/claude-proxy.md`](docs/claude-proxy.md)
 
@@ -77,9 +118,9 @@ claude-local   # 模型选择器 — 已加载的模型排在最上面，标记�
 ollama pull qwen2.5-coder:7b
 ```
 
-然后在 VS Code Copilot Chat 的模型选择器里选本地模型。
+然后在 VS Code Copilot Chat 的模型选择器中即可看到本地模型。
 
-<img src="docs/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
+<img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
 
 完整说明：[`docs/copilot.md`](docs/copilot.md)
 
@@ -88,27 +129,28 @@ ollama pull qwen2.5-coder:7b
 ```text
 <parent>/
   local-llm-agent/   # 本仓库
-  llama-cpp/         # llama.cpp 源码和构建目录
+  llama-cpp/         # llama.cpp 源码及构建目录
   Ollama/            # Ollama 模型存储
 ```
 
-所有路径均可通过环境变量覆盖。大型模型文件（GGUF、Ollama blobs）已加入 `.gitignore`。完整的环境变量说明和服务配置见 [`docs/setup.md`](docs/setup.md)。
+所有路径均可通过环境变量覆盖。大型模型文件（GGUF、Ollama blobs）已加入 `.gitignore`。完整的环境变量说明与服务配置见 [`docs/setup.md`](docs/setup.md)。
 
-## 文档
+## 文档索引
 
-| 文件 | 内容 |
+| 文档 | 说明 |
 |---|---|
-| [`docs/setup.md`](docs/setup.md) | 目录结构、环境变量、服务和安装流程 |
-| [`docs/control-panel.md`](docs/control-panel.md) | 控制面板与监控面板 — 用法、环境变量 |
-| [`docs/hardware-matching.md`](docs/hardware-matching.md) | 按硬件选择模型 |
-| [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/server 用法 |
-| [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama 服务和 API 用法 |
-| [`docs/cline.md`](docs/cline.md) | Cline 集成和故障排查 |
+| [`docs/setup.md`](docs/setup.md) | 目录结构、环境变量、服务配置与安装流程 |
+| [`docs/control-panel.md`](docs/control-panel.md) | 控制面板与监控面板 — 使用说明与环境变量 |
+| [`docs/hardware-matching.md`](docs/hardware-matching.md) | 按硬件配置推荐模型 |
+| [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md) | 便携式 LLM 启动器：本机/便携模式用法 |
+| [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/服务端用法 |
+| [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama 服务与 API 用法 |
+| [`docs/cline.md`](docs/cline.md) | Cline 集成与故障排查 |
 | [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI 连接 Ollama |
 | [`docs/claude-local.md`](docs/claude-local.md) | `claude-local` 启动器和模型选择器 |
-| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code 通过本地代理连接 Ollama |
+| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI 连接 Ollama |
 | [`docs/claude-proxy.md`](docs/claude-proxy.md) | 本地 Anthropic proxy 原理 |
-| [`docs/context-memory.md`](docs/context-memory.md) | 上下文窗口、KV cache、持久记忆 |
-| [`docs/models.md`](docs/models.md) | 模型家族及其适用场景 |
-| [`docs/maintenance.md`](docs/maintenance.md) | 添加 / 删除 / 检查 / 更新模型 |
-| [`docs/tuning.md`](docs/tuning.md) | 参数调整和 Modelfile 工作流 |
+| [`docs/context-memory.md`](docs/context-memory.md) | 上下文窗口、KV cache、持久化记忆 |
+| [`docs/models.md`](docs/models.md) | 各模型系列及适用场景 |
+| [`docs/maintenance.md`](docs/maintenance.md) | 模型的添加/删除/检查/更新 |
+| [`docs/tuning.md`](docs/tuning.md) | 参数调优与 Modelfile 工作流 |
