@@ -146,6 +146,8 @@ Full guide: [`docs/copilot.md`](docs/copilot.md)
 ```text
 <parent>/
   local-llm-agent/   # this repo
+    .local/          # local agent runtime state, venvs, and caches
+    models/          # shared GGUF files for llama.cpp and Ollama symlinks
   llama-cpp/         # llama.cpp source/build
   Ollama/            # Ollama model store
 ```

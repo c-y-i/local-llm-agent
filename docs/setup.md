@@ -83,6 +83,7 @@ llm-portable
 
 ```text
 local-llm-agent/
+  .local/                 # local agent runtime state, venvs, and caches
   models/                 # local GGUF files, ignored by Git
   modelfiles/             # lightweight Ollama Modelfiles
   scripts/common/         # env and status helpers
