@@ -20,6 +20,23 @@ Usage: portable-ollama <command> [args...]
 
 Runs Ollama against this repo's portable model store.
 
+Available Commands:
+  serve       Start portable Ollama
+  create      Create a model
+  show        Show information for a model
+  run         Run a model
+  stop        Stop a running model
+  pull        Pull a model from a registry
+  push        Push a model to a registry
+  signin      Sign in to ollama.com
+  signout     Sign out from ollama.com
+  list        List models
+  ps          List running models
+  cp          Copy a model
+  rm          Remove a model
+  launch      Launch the Ollama menu or an integration
+  help        Help about any command
+
 Examples:
   portable-ollama serve
   portable-ollama list
