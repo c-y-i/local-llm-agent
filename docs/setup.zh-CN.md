@@ -63,12 +63,15 @@ sudo systemctl start llama-cline
 
 `llama-cline` 默认不启用开机自启，需要手动 start / stop。
 
-便携部署不要安装宿主机服务，除非你确实需要。在这台宿主机上安装一次短命令，然后启动便携服务：
+便携部署不要安装宿主机服务，除非你确实需要。每台插入此移动硬盘的宿主机执行一次短命令安装脚本，然后启动便携服务：
 
 ```bash
 ./scripts/setup/install-portable-ollama-command.sh
 portable-ollama serve
 ```
+
+安装脚本会在 `~/.local/bin` 中创建软链接。如果 shell 找不到
+`portable-ollama`，请在该宿主机上把 `~/.local/bin` 加入 `PATH`，然后打开新终端。
 
 ## 目录结构
 

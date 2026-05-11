@@ -27,12 +27,15 @@
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
-# 在这台宿主机上安装一次短命令。
+# 每台插入此移动硬盘的宿主机执行一次。
 ./scripts/setup/install-portable-ollama-command.sh
 
 # 终端 1：保持便携服务运行
 portable-ollama serve
 ```
+
+安装脚本会在 `~/.local/bin` 中创建软链接。如果 shell 找不到
+`portable-ollama`，请在该宿主机上把 `~/.local/bin` 加入 `PATH`，然后打开新终端。
 
 然后在另一个终端中：
 

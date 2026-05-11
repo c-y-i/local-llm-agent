@@ -3,15 +3,7 @@
 English | [简体中文](README.zh-CN.md)
 
 Locally deployable LLM agent workspace — run models on your own hardware and
-plug them into agent workflows. Supports flexible deployment options: native
-host or portable drive. Full control, private, and no token limits.
-
-## Deployment Options
-
-| Mode | Use it when | Start command |
-|---|---|---|
-| Native host | The model store and services live on this computer | `./scripts/ollama/serve.sh` |
-| Portable drive | The repo and model store move between computers | `portable-ollama serve` |
+plug them into agent workflows. Full control, private, and no token limits.
 
 ## Quick Start
 
@@ -19,72 +11,13 @@ host or portable drive. Full control, private, and no token limits.
 ./scripts/setup/check-prereqs.sh       # verify dependencies
 ./scripts/setup/configure-ollama.sh    # set up Ollama (first time only)
 
-python3 control_panel.py               # browser UI  →  http://localhost:8766
-# — or —
-./scripts/ollama/serve.sh && ollama run qwen3:4b
+./scripts/ollama/serve.sh              # native Ollama on 127.0.0.1:11434
+ollama run qwen3:4b
 ```
 
-## Portable Drive
-
-Portable support is optional. Use it when this repo is on a portable drive and
-the host may already have Ollama running on `11434`. The portable launcher
-starts a foreground Ollama server with the portable model store. It uses the
-host's `ollama` command, or `OLLAMA_BIN=/path/to/ollama` when you want to point
-at a specific executable.
-
-Native host setups can keep using `./scripts/ollama/serve.sh`.
-
-```bash
-cd /path/to/portable-drive/local-llm-agent
-
-# Install the short command once on this host.
-./scripts/setup/install-portable-ollama-command.sh
-
-# Start the portable Ollama server on 127.0.0.1:14514.
-portable-ollama serve
-```
-
-In another terminal:
-
-```bash
-portable-ollama list
-portable-ollama run qwen3:4b
-```
-
-Script roles:
-
-| Script | What it does |
-|---|---|
-| `portable-ollama` | Runs `serve`, `list`, `run`, `pull`, `rm`, and other Ollama commands against the portable store |
-| `install-portable-ollama-command.sh` | Symlinks `portable-ollama` into `~/.local/bin` |
-| `portable-llm-launcher.sh` | Starts Ollama with this repo's sibling `Ollama/models/llm` store |
-| `portable-llm-launcher.ps1` / `.cmd` | Windows launcher for the same portable model-store layout |
-
-Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
-
-## Dashboard
-
-Single-file Python dashboards — nothing beyond stdlib.
-
-### Control Panel
-
-Full service and model controls at `http://localhost:8766`.
-
-```bash
-python3 control_panel.py
-```
-
-<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
-
-### Monitor
-
-Read-only status view at `http://localhost:8765` — safe to expose on shared machines.
-
-```bash
-python3 monitor.py
-```
-
-Full guide: [`docs/control-panel.md`](docs/control-panel.md)
+Portable drive users can run `./scripts/setup/install-portable-ollama-command.sh`
+once per host, then use `portable-ollama serve` and `portable-ollama run
+qwen3:4b`. Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md).
 
 ## Agents
 
@@ -129,6 +62,30 @@ Then select the local model in VS Code Copilot Chat.
 <img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
 
 Full guide: [`docs/copilot.md`](docs/copilot.md)
+
+## Dashboard
+
+Single-file Python dashboards — nothing beyond stdlib.
+
+### Control Panel
+
+Full service and model controls at `http://localhost:8766`.
+
+```bash
+python3 control_panel.py
+```
+
+<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+
+### Monitor
+
+Read-only status view at `http://localhost:8765` — safe to expose on shared machines.
+
+```bash
+python3 monitor.py
+```
+
+Full guide: [`docs/control-panel.md`](docs/control-panel.md)
 
 ## Layout
 

@@ -70,13 +70,17 @@ sudo systemctl start llama-cline
 `llama-cline` is intentionally disabled for autostart. Start and stop it manually.
 
 For a portable drive, skip system service setup unless you explicitly want a
-host-specific service. Install the short command once on that host, then start
-the portable server:
+host-specific service. Run the short-command installer once on each host where
+the drive is plugged in, then start the portable server:
 
 ```bash
 ./scripts/setup/install-portable-ollama-command.sh
 portable-ollama serve
 ```
+
+The installer creates a symlink in `~/.local/bin`. If the shell cannot find
+`portable-ollama`, add `~/.local/bin` to `PATH` on that host and open a new
+terminal.
 
 ## Directory Layout
 

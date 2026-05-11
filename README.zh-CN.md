@@ -2,14 +2,7 @@
 
 [English](README.md) | 简体中文
 
-本地化部署的 LLM agent 工作区——在自有硬件上运行模型，对接 agent 工作流。支持两种部署模式：本机部署和移动硬盘便携部署。数据完全自主可控，无 token 限制，隐私安全。
-
-## 部署模式
-
-| 模式 | 适用场景 | 启动命令 |
-|---|---|---|
-| 本机部署 | 模型存储和服务固定在一台机器上 | `./scripts/ollama/serve.sh` |
-| 便携部署 | 仓库和模型需要在多台机器间移动使用 | `portable-ollama serve` |
+本地化部署的 LLM agent 工作区——在自有硬件上运行模型，对接 agent 工作流。数据完全自主可控，无 token 限制，隐私安全。
 
 ## 快速开始
 
@@ -17,74 +10,13 @@
 ./scripts/setup/check-prereqs.sh       # 检查依赖项
 ./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次执行）
 
-python3 control_panel.py               # 浏览器界面  →  http://localhost:8766
-# 或者
-./scripts/ollama/serve.sh && ollama run qwen3:4b
+./scripts/ollama/serve.sh              # 本机 Ollama，127.0.0.1:11434
+ollama run qwen3:4b
 ```
 
-## 便携部署
-
-便携功能是可选的。适用于将本仓库放在移动硬盘或 U 盘上使用的场景，同时宿主机可能已有 Ollama 占用 `11434` 端口。便携启动器会以前台方式启动 Ollama，并使用移动硬盘上的模型目录。启动器使用宿主机的 `ollama` 命令；如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`。
-
-本机部署继续使用：
-
-```bash
-./scripts/ollama/serve.sh
-```
-
-便携部署：
-
-```bash
-cd /path/to/portable-drive/local-llm-agent
-
-# 在这台宿主机上安装一次短命令。
-./scripts/setup/install-portable-ollama-command.sh
-
-# 在 127.0.0.1:14514 启动便携 Ollama 服务。
-portable-ollama serve
-```
-
-在另一个终端中使用同一端口：
-
-```bash
-portable-ollama list
-portable-ollama run qwen3:4b
-```
-
-脚本职责：
-
-| 脚本 | 作用 |
-|---|---|
-| `portable-ollama` | 对便携模型库执行 `serve`、`list`、`run`、`pull`、`rm` 等 Ollama 命令 |
-| `install-portable-ollama-command.sh` | 将 `portable-ollama` 软链接到 `~/.local/bin` |
-| `portable-llm-launcher.sh` | 使用本仓库同级的 `Ollama/models/llm` 模型库启动 Ollama |
-| `portable-llm-launcher.ps1` / `.cmd` | Windows 下同一便携模型库布局的启动器 |
-
-完整说明：[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md)
-
-## 仪表盘
-
-纯 Python 标准库实现，无任何外部依赖。
-
-### 控制面板
-
-完整服务与模型控制，访问 `http://localhost:8766`。
-
-```bash
-python3 control_panel.py
-```
-
-<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
-
-### 监控面板
-
-只读状态视图，访问 `http://localhost:8765`，适合在多用户共享机器上安全暴露服务状态。
-
-```bash
-python3 monitor.py
-```
-
-完整说明：[`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md)
+便携硬盘用户可在每台宿主机上执行一次 `./scripts/setup/install-portable-ollama-command.sh`，
+然后使用 `portable-ollama serve` 和 `portable-ollama run qwen3:4b`。完整说明见
+[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md)。
 
 ## Agent 集成
 
@@ -129,6 +61,30 @@ ollama pull qwen2.5-coder:7b
 <img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
 
 完整说明：[`docs/copilot.zh-CN.md`](docs/copilot.zh-CN.md)
+
+## 仪表盘
+
+纯 Python 标准库实现，无任何外部依赖。
+
+### 控制面板
+
+完整服务与模型控制，访问 `http://localhost:8766`。
+
+```bash
+python3 control_panel.py
+```
+
+<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+
+### 监控面板
+
+只读状态视图，访问 `http://localhost:8765`
+
+```bash
+python3 monitor.py
+```
+
+完整说明：[`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md)
 
 ## 目录结构
 

@@ -34,12 +34,16 @@ Run these from the portable drive repo:
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
-# Install the short command once on this host.
+# Run once on each host where this drive is plugged in.
 ./scripts/setup/install-portable-ollama-command.sh
 
 # Terminal 1: keep the portable server running.
 portable-ollama serve
 ```
+
+The installer creates a symlink in `~/.local/bin`. If the shell cannot find
+`portable-ollama`, add `~/.local/bin` to `PATH` on that host and open a new
+terminal.
 
 In another terminal:
 
