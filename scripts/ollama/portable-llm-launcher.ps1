@@ -2,27 +2,6 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-function Get-PortableOs {
-    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
-        return "windows"
-    }
-    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
-        return "darwin"
-    }
-    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
-        return "linux"
-    }
-    return [System.Environment]::OSVersion.Platform.ToString().ToLowerInvariant()
-}
-
-function Get-PortableArch {
-    switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()) {
-        "x64" { return "amd64" }
-        "arm64" { return "arm64" }
-        default { return [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant() }
-    }
-}
-
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir "..\..")
 $parent = Split-Path -Parent $repoRoot
@@ -43,15 +22,8 @@ if (-not $env:OLLAMA_NUM_PARALLEL) {
     $env:OLLAMA_NUM_PARALLEL = "1"
 }
 
-$os = Get-PortableOs
-$arch = Get-PortableArch
-$exe = if ($os -eq "windows") { "ollama.exe" } else { "ollama" }
-$bundled = Join-Path $parent "bin\ollama\$os-$arch\$exe"
-
 if ($env:OLLAMA_BIN) {
     $ollamaBin = $env:OLLAMA_BIN
-} elseif (Test-Path $bundled) {
-    $ollamaBin = $bundled
 } else {
     $cmd = Get-Command ollama -ErrorAction SilentlyContinue
     if ($cmd) {
@@ -60,13 +32,9 @@ if ($env:OLLAMA_BIN) {
         Write-Error @"
 No compatible Ollama binary found.
 
-Expected bundled binary:
-  $bundled
-
 Options:
   1. Install Ollama on this host and rerun this launcher.
-  2. Put a matching Ollama binary under bin\ollama\$os-$arch\.
-  3. Set OLLAMA_BIN to a matching Ollama executable.
+  2. Set OLLAMA_BIN to a matching Ollama executable.
 "@
     }
 }

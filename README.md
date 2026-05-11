@@ -11,7 +11,7 @@ host or portable drive. Full control, private, and no token limits.
 | Mode | Use it when | Start command |
 |---|---|---|
 | Native host | The model store and services live on this computer | `./scripts/ollama/serve.sh` |
-| Portable drive | The repo and model store move between computers | `llm-portable` or `./scripts/ollama/llm-portable.sh` |
+| Portable drive | The repo and model store move between computers | `OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh` |
 
 ## Quick Start
 
@@ -27,49 +27,33 @@ python3 control_panel.py               # browser UI  →  http://localhost:8766
 ## Portable Drive
 
 Portable support is optional. Use it when this repo is on a portable drive and
-the host may already have Ollama running on `11434`. `llm-portable` starts a
-foreground Ollama server with the portable model store on `127.0.0.1:14514`.
-`llm-ollama` runs Ollama CLI commands against that portable server without
-typing `OLLAMA_HOST=...` every time.
+the host may already have Ollama running on `11434`. The portable launcher
+starts a foreground Ollama server with the portable model store. It uses the
+host's `ollama` command, or `OLLAMA_BIN=/path/to/ollama` when you want to point
+at a specific executable.
 
 Native host setups can keep using `./scripts/ollama/serve.sh`.
 
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
-# Optional: copy the host's Ollama binary onto the drive.
-# This does not start Ollama.
-./scripts/ollama/install-portable-llm-binary.sh
-
-# Install the short shell commands once.
-./scripts/setup/install-llm-portable-command.sh
-source ~/.bashrc
-
 # Start the portable Ollama server on 127.0.0.1:14514.
-llm-portable
-```
-
-Or run the wrapper directly:
-
-```bash
-./scripts/ollama/llm-portable.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 In another terminal:
 
 ```bash
-llm-ollama list
-llm-ollama run qwen3:4b
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 ```
 
 Script roles:
 
 | Script | What it does |
 |---|---|
-| `install-portable-llm-binary.sh` | Copies an Ollama executable to the drive; does not start Ollama |
-| `install-llm-portable-command.sh` | Adds `llm-portable` and `llm-ollama` shell commands to `~/.bashrc` |
-| `llm-portable.sh` / `llm-portable` | Starts the portable Ollama server on `127.0.0.1:14514` |
-| `llm-ollama.sh` / `llm-ollama` | Runs Ollama CLI commands against the portable server |
+| `portable-llm-launcher.sh` | Starts Ollama with this repo's sibling `Ollama/models/llm` store |
+| `portable-llm-launcher.ps1` / `.cmd` | Windows launcher for the same portable model-store layout |
 
 Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
 

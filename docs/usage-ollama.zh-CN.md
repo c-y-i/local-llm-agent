@@ -34,23 +34,19 @@ ollama serve
 便携部署时使用：
 
 ```bash
-./scripts/ollama/llm-portable.sh
-```
-
-默认使用 `OLLAMA_HOST=127.0.0.1:14514`，以避免和 Ollama 默认端口冲突。
-
-如果已经安装 shell 辅助命令，另开一个终端使用 `llm-ollama`，不需要重复输入 `OLLAMA_HOST=...`：
-
-```bash
-llm-ollama list
-llm-ollama run qwen3:4b
-```
-
-也可以直接运行底层启动器：
-
-```bash
 OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
+
+这个端口可以避开宿主机默认的 Ollama 服务端口。
+
+另开一个终端时使用同一个 `OLLAMA_HOST`：
+
+```bash
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+```
+
+启动器会把 `OLLAMA_MODELS` 指向本仓库同级的 `Ollama/models/llm`，并使用宿主机上的 `ollama` 命令。需要指定可执行文件时，设置 `OLLAMA_BIN=/path/to/ollama`。
 
 Windows：
 

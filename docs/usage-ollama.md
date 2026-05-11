@@ -38,33 +38,19 @@ ollama serve
 For a portable drive, use the Portable LLM Launcher:
 
 ```bash
-./scripts/ollama/portable-llm-launcher.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
-The convenience wrapper uses the same launcher and defaults to
-`OLLAMA_HOST=127.0.0.1:14514`, which avoids the default Ollama service port:
+Use the same `OLLAMA_HOST` in another terminal:
 
 ```bash
-./scripts/ollama/llm-portable.sh
-```
-
-If you installed the shell helpers, use `llm-ollama` in another terminal
-instead of repeating `OLLAMA_HOST=...`:
-
-```bash
-llm-ollama list
-llm-ollama run qwen3:4b
+OLLAMA_HOST=127.0.0.1:14514 ollama list
+OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 ```
 
 It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
-and prefers a bundled binary at `../bin/ollama/<os>-<arch>/ollama[.exe]`. If no
-bundled binary exists, it falls back to the host's `ollama` on `PATH`.
-
-To put the current host's Ollama binary on the portable drive:
-
-```bash
-./scripts/ollama/install-portable-llm-binary.sh
-```
+and uses the host's `ollama` command. Set `OLLAMA_BIN=/path/to/ollama` to use a
+specific executable.
 
 Use a separate port when the host already has an Ollama service:
 

@@ -3,8 +3,7 @@
 English | [简体中文](setup.zh-CN.md)
 
 This project is a locally deployable LLM agent workspace with flexible
-deployment options: native host or portable drive, with optional Ollama
-binaries for other hosts.
+deployment options: native host or portable drive.
 
 Both modes use the same base layout: clone this repo as `local-llm-agent` next
 to `llama-cpp/` and `Ollama/`. The same layout works for tiny CPU/SBC machines,
@@ -71,12 +70,10 @@ sudo systemctl start llama-cline
 `llama-cline` is intentionally disabled for autostart. Start and stop it manually.
 
 For a portable drive, skip system service setup unless you explicitly want a
-host-specific service. Use the portable command installer instead:
+host-specific service. Start the portable launcher directly:
 
 ```bash
-./scripts/setup/install-llm-portable-command.sh
-source ~/.bashrc
-llm-portable
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 ## Directory Layout
@@ -89,7 +86,7 @@ local-llm-agent/
   scripts/common/         # env and status helpers
   scripts/llama-cpp/      # llama.cpp wrappers
   scripts/ollama/         # Ollama sharing/maintenance helpers
-  scripts/setup/          # guided setup scripts and portable command installer
+  scripts/setup/          # guided setup scripts
   systemd/                # service templates
   tuning/                 # personality builder and comparison tools
   docs/                   # portable docs
@@ -112,11 +109,11 @@ This is the native host service path.
 For a portable drive, prefer the Portable LLM Launcher instead of a service:
 
 ```bash
-./scripts/ollama/llm-portable.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
-The launcher can use either a host-installed `ollama` or a compatible binary
-copied onto the portable drive with `./scripts/ollama/install-portable-llm-binary.sh`.
+The launcher uses the host-installed `ollama` command. Set
+`OLLAMA_BIN=/path/to/ollama` if you need a specific executable.
 
 `llama-cline.service` is generated from `systemd/llama-cline.service.in`. The installer fills in the current repo path and service user, installs to `/etc/systemd/system/llama-cline.service`, reloads systemd, and keeps the unit disabled.
 

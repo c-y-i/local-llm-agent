@@ -1,57 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start a foreground Ollama server from the Portable LLM Launcher layout.
-# Prefer a bundled binary, then OLLAMA_BIN, then a host-installed ollama.
+# Start a foreground Ollama server with this repo's portable model store.
+# Use OLLAMA_BIN when set, otherwise use the host-installed ollama.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../common/env.sh
 source "${SCRIPT_DIR}/../common/env.sh"
 
-detect_os() {
-  case "$(uname -s)" in
-    Linux*) echo "linux" ;;
-    Darwin*) echo "darwin" ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-    *) uname -s | tr '[:upper:]' '[:lower:]' ;;
-  esac
-}
-
-detect_arch() {
-  case "$(uname -m)" in
-    x86_64|amd64) echo "amd64" ;;
-    aarch64|arm64) echo "arm64" ;;
-    *) uname -m ;;
-  esac
-}
-
-os="$(detect_os)"
-arch="$(detect_arch)"
-ext=""
-if [[ "$os" == "windows" ]]; then
-  ext=".exe"
-fi
-
-bundled="${LOCAL_LLM_AGENT_PARENT}/bin/ollama/${os}-${arch}/ollama${ext}"
-
 if [[ -n "${OLLAMA_BIN:-}" ]]; then
   ollama_bin="$OLLAMA_BIN"
-elif [[ -x "$bundled" ]]; then
-  ollama_bin="$bundled"
 elif command -v ollama >/dev/null 2>&1; then
   ollama_bin="$(command -v ollama)"
 else
   cat >&2 <<EOF
-No compatible Ollama binary found.
-
-Expected bundled binary:
-  ${bundled}
+No Ollama executable found.
 
 Options:
   1. Install Ollama on this host and rerun this launcher.
-  2. On a matching machine, run:
-     ${LOCAL_LLM_AGENT_ROOT}/scripts/ollama/install-portable-llm-binary.sh
-  3. Set OLLAMA_BIN=/path/to/ollama.
+  2. Set OLLAMA_BIN=/path/to/ollama.
 EOF
   exit 1
 fi
@@ -76,8 +43,7 @@ Port ${port} is already in use:
 Use a different port, for example:
   OLLAMA_HOST=127.0.0.1:14514 $0
 
-For the usual portable-drive workflow on Linux/macOS, run:
-  ${SCRIPT_DIR}/llm-portable.sh
+Use a matching OLLAMA_HOST in both terminals.
 EOF
     exit 1
   fi
@@ -89,13 +55,8 @@ echo "  OLLAMA_MODELS : ${OLLAMA_MODELS}"
 echo "  OLLAMA_HOST   : ${OLLAMA_HOST}"
 echo
 echo "In another terminal:"
-if [[ "${OLLAMA_HOST}" == "127.0.0.1:14514" || "${OLLAMA_HOST}" == "http://127.0.0.1:14514" ]]; then
-  echo "  ${SCRIPT_DIR}/llm-ollama.sh list"
-  echo "  ${SCRIPT_DIR}/llm-ollama.sh run qwen3:4b"
-else
-  echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} list"
-  echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} run qwen3:4b"
-fi
+echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} list"
+echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} run qwen3:4b"
 echo
 
 exec "$ollama_bin" serve

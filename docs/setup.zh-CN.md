@@ -63,12 +63,10 @@ sudo systemctl start llama-cline
 
 `llama-cline` 默认不启用开机自启，需要手动 start / stop。
 
-便携部署不要安装宿主机服务，除非你确实需要。使用便携命令安装脚本：
+便携部署不要安装宿主机服务，除非你确实需要。直接运行便携启动器：
 
 ```bash
-./scripts/setup/install-llm-portable-command.sh
-source ~/.bashrc
-llm-portable
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
 ## 目录结构
@@ -80,7 +78,7 @@ local-llm-agent/
   scripts/common/         # 环境变量和状态辅助脚本
   scripts/llama-cpp/      # llama.cpp 封装脚本
   scripts/ollama/         # Ollama 共享与维护脚本
-  scripts/setup/          # 安装脚本与便携命令安装器
+  scripts/setup/          # 安装脚本
   systemd/                # 服务模板
   tuning/                 # 个性化构建与对比工具
   docs/                   # 文档
@@ -102,14 +100,10 @@ local-llm-agent/
 便携部署推荐使用 Portable LLM Launcher，而非服务：
 
 ```bash
-./scripts/ollama/llm-portable.sh
+OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
 ```
 
-启动器可以使用宿主机已安装的 `ollama`，也可以使用复制到移动硬盘上的兼容二进制文件：
-
-```bash
-./scripts/ollama/install-portable-llm-binary.sh
-```
+启动器使用宿主机已安装的 `ollama`。如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`。
 
 `llama-cline.service` 由 `systemd/llama-cline.service.in` 模板生成。安装脚本会填入当前仓库路径和 service user，安装至 `/etc/systemd/system/llama-cline.service`，reload systemd，并保持 disabled 状态。
 
