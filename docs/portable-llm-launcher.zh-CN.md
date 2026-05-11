@@ -2,9 +2,9 @@
 
 [English](portable-llm-launcher.md) | 简体中文
 
-本项目支持可选的便携部署模式。同一套仓库结构既可以在本机通过 `./scripts/ollama/serve.sh` 运行，也可以放在移动硬盘上在多台主机之间移动使用，并携带 Ollama 模型存储和可选的操作系统专用 Ollama 二进制文件。
+本项目支持可选的便携部署模式。同一套仓库结构既可以在本机通过 `./scripts/ollama/serve.sh` 运行，也可以放在移动硬盘上在多台主机之间移动使用，同时携带 Ollama 模型存储和可选的操作系统专用 Ollama 二进制文件。
 
-移动硬盘上不应该安装 systemd 服务。服务属于宿主机配置；前台启动器更适合在多台电脑间移动使用。
+移动硬盘上不应该安装 systemd 服务——服务属于宿主机配置；前台启动器更适合在多台电脑间移动使用。
 
 ## 哪些部分是便携的
 
@@ -58,48 +58,60 @@
 
 本节仅适用于便携部署。本机部署请参考 [`usage-ollama.zh-CN.md`](usage-ollama.zh-CN.md) 和 `./scripts/ollama/serve.sh`。
 
-### 命令流程
+日常便携使用只需要两个命令：
 
-在移动硬盘上的仓库目录运行：
+```bash
+# 终端 1：保持便携服务运行
+llm-portable
+
+# 终端 2：连接这个便携服务
+llm-ollama list
+llm-ollama run qwen3:4b
+```
+
+### 完整流程
+
+在移动硬盘上的仓库目录中运行：
 
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
-# 可选：把宿主机上的 Ollama 二进制复制到移动硬盘。
-# 这一步不会启动 Ollama。
+# 可选：将宿主机上的 Ollama 二进制文件复制到移动硬盘
+# 这一步不会启动 Ollama
 ./scripts/ollama/install-portable-llm-binary.sh
 
-# 首次安装 llm-portable 命令。
+# 首次使用时安装快捷命令
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
 
-# 在 127.0.0.1:14514 启动便携 Ollama 服务。
+# 在 127.0.0.1:14514 启动便携 Ollama 服务
 llm-portable
 ```
 
-在另一个终端中：
+然后在另一个终端中：
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+llm-ollama list
+llm-ollama run qwen3:4b
 ```
 
-脚本职责：
+脚本职责一览：
 
 | 脚本 | 作用 | 会启动 Ollama？ |
 |---|---|---|
-| `install-portable-llm-binary.sh` | 把 Ollama 可执行文件复制到 `../bin/ollama/<os>-<arch>/` | 不会 |
-| `install-llm-portable-command.sh` | 在 `~/.bashrc` 中添加或更新 `llm-portable` shell 命令 | 不会 |
+| `install-portable-llm-binary.sh` | 将 Ollama 可执行文件复制到 `../bin/ollama/<os>-<arch>/` | 不会 |
+| `install-llm-portable-command.sh` | 在 `~/.bashrc` 中添加或更新 `llm-portable` 和 `llm-ollama` 函数 | 不会 |
 | `llm-portable.sh` / `llm-portable` | 使用 `OLLAMA_HOST=127.0.0.1:14514` 启动便携 Ollama 服务 | 会 |
+| `llm-ollama.sh` / `llm-ollama` | 使用 `OLLAMA_HOST=127.0.0.1:14514` 执行 Ollama CLI 命令 | 不会 |
 | `portable-llm-launcher.sh` | 底层启动器；除非设置 `OLLAMA_HOST`，否则默认使用 `11434` | 会 |
 
-### 命令说明
+### 快捷命令说明
 
-`install-llm-portable-command.sh` 会在 `~/.bashrc` 中添加或更新 `llm-portable` 函数，写入当前仓库路径。因此克隆或拉取到移动硬盘后，请从移动硬盘上的仓库目录运行它。
+`install-llm-portable-command.sh` 会在 `~/.bashrc` 中添加或更新 `llm-portable` 和 `llm-ollama` 两个函数，并写入当前仓库路径。因此克隆或拉取到移动硬盘后，请从移动硬盘上的仓库目录运行此脚本。
 
-如果移动硬盘被拔出，shell 函数仍会保留在 `~/.bashrc` 中，但不会影响 shell 启动。只有在执行 `llm-portable` 时才会检查路径。如果启动器不存在，它会提示你重新插入移动硬盘，或从新的挂载路径重新运行安装脚本。
+如果移动硬盘被拔出，shell 函数仍会保留在 `~/.bashrc` 中，但不会影响 shell 启动。只有在实际执行 `llm-portable` 时才会检查路径。如果启动器不存在，它会提示你重新插入移动硬盘，或从新的挂载路径重新运行安装脚本。
 
-预览将写入的 shell 函数，不实际修改 `~/.bashrc`：
+预览将要写入的 shell 函数而不实际修改 `~/.bashrc`：
 
 ```bash
 ./scripts/setup/install-llm-portable-command.sh --dry-run
@@ -126,11 +138,15 @@ source ~/.bashrc
 function llm-portable() {
   /path/to/portable-drive/local-llm-agent/scripts/ollama/llm-portable.sh "$@"
 }
+
+function llm-ollama() {
+  /path/to/portable-drive/local-llm-agent/scripts/ollama/llm-ollama.sh "$@"
+}
 ```
 
 ### 直接运行底层启动器
 
-底层启动器默认仍使用 `11434`，除非显式设置 `OLLAMA_HOST`：
+大多数用户应使用 `llm-portable` 和 `llm-ollama`。底层启动器默认仍使用 `11434`，除非显式设置 `OLLAMA_HOST`：
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
@@ -170,7 +186,14 @@ $env:OLLAMA_HOST="127.0.0.1:14514"
 .\scripts\ollama\portable-llm-launcher.ps1
 ```
 
-然后使用该端口访问：
+Linux/macOS 已安装辅助命令时，使用：
+
+```bash
+llm-ollama list
+llm-ollama run qwen3:30b
+```
+
+未安装辅助命令时，继续显式指定同一个端口：
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ollama list

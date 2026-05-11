@@ -39,6 +39,13 @@ ollama serve
 
 默认使用 `OLLAMA_HOST=127.0.0.1:14514`，以避免和 Ollama 默认端口冲突。
 
+如果已经安装 shell 辅助命令，另开一个终端使用 `llm-ollama`，不需要重复输入 `OLLAMA_HOST=...`：
+
+```bash
+llm-ollama list
+llm-ollama run qwen3:4b
+```
+
 也可以直接运行底层启动器：
 
 ```bash

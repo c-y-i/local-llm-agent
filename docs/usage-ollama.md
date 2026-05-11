@@ -48,6 +48,14 @@ The convenience wrapper uses the same launcher and defaults to
 ./scripts/ollama/llm-portable.sh
 ```
 
+If you installed the shell helpers, use `llm-ollama` in another terminal
+instead of repeating `OLLAMA_HOST=...`:
+
+```bash
+llm-ollama list
+llm-ollama run qwen3:4b
+```
+
 It points `OLLAMA_MODELS` at this repo's sibling `Ollama/models/llm` directory
 and prefers a bundled binary at `../bin/ollama/<os>-<arch>/ollama[.exe]`. If no
 bundled binary exists, it falls back to the host's `ollama` on `PATH`.

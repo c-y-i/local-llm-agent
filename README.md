@@ -29,6 +29,8 @@ python3 control_panel.py               # browser UI  →  http://localhost:8766
 Portable support is optional. Use it when this repo is on a portable drive and
 the host may already have Ollama running on `11434`. `llm-portable` starts a
 foreground Ollama server with the portable model store on `127.0.0.1:14514`.
+`llm-ollama` runs Ollama CLI commands against that portable server without
+typing `OLLAMA_HOST=...` every time.
 
 Native host setups can keep using `./scripts/ollama/serve.sh`.
 
@@ -39,7 +41,7 @@ cd /path/to/portable-drive/local-llm-agent
 # This does not start Ollama.
 ./scripts/ollama/install-portable-llm-binary.sh
 
-# Install the short shell command once.
+# Install the short shell commands once.
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
 
@@ -56,8 +58,8 @@ Or run the wrapper directly:
 In another terminal:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+llm-ollama list
+llm-ollama run qwen3:4b
 ```
 
 Script roles:
@@ -65,8 +67,9 @@ Script roles:
 | Script | What it does |
 |---|---|
 | `install-portable-llm-binary.sh` | Copies an Ollama executable to the drive; does not start Ollama |
-| `install-llm-portable-command.sh` | Adds the `llm-portable` shell command to `~/.bashrc` |
+| `install-llm-portable-command.sh` | Adds `llm-portable` and `llm-ollama` shell commands to `~/.bashrc` |
 | `llm-portable.sh` / `llm-portable` | Starts the portable Ollama server on `127.0.0.1:14514` |
+| `llm-ollama.sh` / `llm-ollama` | Runs Ollama CLI commands against the portable server |
 
 Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md)
 

@@ -24,7 +24,7 @@ python3 control_panel.py               # 浏览器界面  →  http://localhost:
 
 ## 便携部署
 
-便携功能是可选的。适用于将本仓库放在移动硬盘或 U 盘上使用的场景，同时宿主机可能已有 Ollama 占用 `11434` 端口。执行 `llm-portable` 会前台启动 Ollama 服务，并将移动硬盘上的模型目录绑定到 `127.0.0.1:14514`。
+便携功能是可选的。适用于将本仓库放在移动硬盘或 U 盘上使用的场景，同时宿主机可能已有 Ollama 占用 `11434` 端口。执行 `llm-portable` 会前台启动 Ollama 服务，并将移动硬盘上的模型目录绑定到 `127.0.0.1:14514`。`llm-ollama` 会自动连接这个便携服务，不需要每次手写 `OLLAMA_HOST=...`。
 
 本机部署继续使用：
 
@@ -41,7 +41,7 @@ cd /path/to/portable-drive/local-llm-agent
 # 这一步不会启动 Ollama。
 ./scripts/ollama/install-portable-llm-binary.sh
 
-# 首次安装 llm-portable 命令。
+# 首次安装短命令。
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
 
@@ -58,8 +58,8 @@ llm-portable
 在另一个终端中使用同一端口：
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+llm-ollama list
+llm-ollama run qwen3:4b
 ```
 
 脚本职责：
@@ -67,8 +67,9 @@ OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
 | 脚本 | 作用 |
 |---|---|
 | `install-portable-llm-binary.sh` | 把 Ollama 可执行文件复制到移动硬盘；不会启动 Ollama |
-| `install-llm-portable-command.sh` | 把 `llm-portable` shell 命令写入 `~/.bashrc` |
+| `install-llm-portable-command.sh` | 把 `llm-portable` 和 `llm-ollama` shell 命令写入 `~/.bashrc` |
 | `llm-portable.sh` / `llm-portable` | 在 `127.0.0.1:14514` 启动便携 Ollama 服务 |
+| `llm-ollama.sh` / `llm-ollama` | 对便携 Ollama 服务执行 CLI 命令 |
 
 完整说明：[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md)
 

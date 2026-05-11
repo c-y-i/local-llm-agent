@@ -69,6 +69,17 @@ This section is only for the portable drive workflow. For native host use,
 use [`usage-ollama.md`](usage-ollama.md) and
 `./scripts/ollama/serve.sh` instead.
 
+Daily portable use is two commands:
+
+```bash
+# Terminal 1: keep the portable server running.
+llm-portable
+
+# Terminal 2: talk to that portable server.
+llm-ollama list
+llm-ollama run qwen3:4b
+```
+
 ### Command Flow
 
 Run these from the portable drive repo:
@@ -80,7 +91,7 @@ cd /path/to/portable-drive/local-llm-agent
 # This does not start Ollama.
 ./scripts/ollama/install-portable-llm-binary.sh
 
-# Install the short shell command once.
+# Install the short shell commands once.
 ./scripts/setup/install-llm-portable-command.sh
 source ~/.bashrc
 
@@ -91,8 +102,8 @@ llm-portable
 In another terminal:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+llm-ollama list
+llm-ollama run qwen3:4b
 ```
 
 Script roles:
@@ -100,15 +111,16 @@ Script roles:
 | Script | What it does | Starts Ollama? |
 |---|---|---|
 | `install-portable-llm-binary.sh` | Copies an Ollama executable into `../bin/ollama/<os>-<arch>/` | No |
-| `install-llm-portable-command.sh` | Adds or updates the `llm-portable` shell command in `~/.bashrc` | No |
+| `install-llm-portable-command.sh` | Adds or updates `llm-portable` and `llm-ollama` in `~/.bashrc` | No |
 | `llm-portable.sh` / `llm-portable` | Starts the portable Ollama server with `OLLAMA_HOST=127.0.0.1:14514` | Yes |
+| `llm-ollama.sh` / `llm-ollama` | Runs Ollama CLI commands with `OLLAMA_HOST=127.0.0.1:14514` | No |
 | `portable-llm-launcher.sh` | Low-level launcher; defaults to `11434` unless `OLLAMA_HOST` is set | Yes |
 
 ### Command Notes
 
-`install-llm-portable-command.sh` adds or updates a `llm-portable` function in
-`~/.bashrc`. It uses the current repo path, so run it from the drive after
-cloning or pulling this repo there.
+`install-llm-portable-command.sh` adds or updates `llm-portable` and
+`llm-ollama` functions in `~/.bashrc`. They use the current repo path, so run
+the installer from the drive after cloning or pulling this repo there.
 
 If the drive is unplugged, the shell function remains in `~/.bashrc` but does
 nothing until called. If you call it while the drive is missing, it prints a
@@ -140,11 +152,16 @@ The setup script installs this shell function:
 function llm-portable() {
   /path/to/portable-drive/local-llm-agent/scripts/ollama/llm-portable.sh "$@"
 }
+
+function llm-ollama() {
+  /path/to/portable-drive/local-llm-agent/scripts/ollama/llm-ollama.sh "$@"
+}
 ```
 
 ### Direct Launcher
 
-The underlying launcher still defaults to `11434` unless `OLLAMA_HOST` is set:
+Most users should use `llm-portable` and `llm-ollama`. The underlying launcher
+still defaults to `11434` unless `OLLAMA_HOST` is set:
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
@@ -164,7 +181,16 @@ cd X:\local-llm-agent
 .\scripts\ollama\portable-llm-launcher.ps1
 ```
 
-For Windows or any direct launcher use, query the same `OLLAMA_HOST`:
+For Windows or any direct launcher use, query the same `OLLAMA_HOST`.
+PowerShell:
+
+```powershell
+$env:OLLAMA_HOST="127.0.0.1:11434"
+ollama list
+ollama run qwen3:4b
+```
+
+Bash:
 
 ```bash
 OLLAMA_HOST=127.0.0.1:11434 ollama list
@@ -184,7 +210,14 @@ $env:OLLAMA_HOST="127.0.0.1:14514"
 .\scripts\ollama\portable-llm-launcher.ps1
 ```
 
-Then query that port:
+On Linux/macOS with the helper installed, query that port with:
+
+```bash
+llm-ollama list
+llm-ollama run qwen3:30b
+```
+
+Without the helper, keep using the same host value:
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ollama list

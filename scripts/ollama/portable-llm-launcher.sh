@@ -89,8 +89,13 @@ echo "  OLLAMA_MODELS : ${OLLAMA_MODELS}"
 echo "  OLLAMA_HOST   : ${OLLAMA_HOST}"
 echo
 echo "In another terminal:"
-echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} list"
-echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} run qwen3:4b"
+if [[ "${OLLAMA_HOST}" == "127.0.0.1:14514" || "${OLLAMA_HOST}" == "http://127.0.0.1:14514" ]]; then
+  echo "  ${SCRIPT_DIR}/llm-ollama.sh list"
+  echo "  ${SCRIPT_DIR}/llm-ollama.sh run qwen3:4b"
+else
+  echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} list"
+  echo "  OLLAMA_HOST=${OLLAMA_HOST} ${ollama_bin} run qwen3:4b"
+fi
 echo
 
 exec "$ollama_bin" serve
