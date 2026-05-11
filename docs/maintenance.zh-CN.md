@@ -52,7 +52,7 @@ pkill -f "ollama serve"
 便携部署请优先使用：
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
 完整说明见 [`portable-llm-launcher.zh-CN.md`](portable-llm-launcher.zh-CN.md)。

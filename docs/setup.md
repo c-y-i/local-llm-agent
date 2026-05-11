@@ -70,10 +70,12 @@ sudo systemctl start llama-cline
 `llama-cline` is intentionally disabled for autostart. Start and stop it manually.
 
 For a portable drive, skip system service setup unless you explicitly want a
-host-specific service. Start the portable launcher directly:
+host-specific service. Install the short command once on that host, then start
+the portable server:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+./scripts/setup/install-portable-ollama-command.sh
+portable-ollama serve
 ```
 
 ## Directory Layout
@@ -109,10 +111,11 @@ This is the native host service path.
 For a portable drive, prefer the Portable LLM Launcher instead of a service:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
-The launcher uses the host-installed `ollama` command. Set
+`portable-ollama` uses the host-installed `ollama` command, the repo's sibling
+`Ollama/models/llm` model store, and `127.0.0.1:14514`. Set
 `OLLAMA_BIN=/path/to/ollama` if you need a specific executable.
 
 `llama-cline.service` is generated from `systemd/llama-cline.service.in`. The installer fills in the current repo path and service user, installs to `/etc/systemd/system/llama-cline.service`, reloads systemd, and keeps the unit disabled.

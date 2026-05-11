@@ -11,7 +11,7 @@ host or portable drive. Full control, private, and no token limits.
 | Mode | Use it when | Start command |
 |---|---|---|
 | Native host | The model store and services live on this computer | `./scripts/ollama/serve.sh` |
-| Portable drive | The repo and model store move between computers | `OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh` |
+| Portable drive | The repo and model store move between computers | `portable-ollama serve` |
 
 ## Quick Start
 
@@ -37,21 +37,26 @@ Native host setups can keep using `./scripts/ollama/serve.sh`.
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
+# Install the short command once on this host.
+./scripts/setup/install-portable-ollama-command.sh
+
 # Start the portable Ollama server on 127.0.0.1:14514.
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
 In another terminal:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+portable-ollama list
+portable-ollama run qwen3:4b
 ```
 
 Script roles:
 
 | Script | What it does |
 |---|---|
+| `portable-ollama` | Runs `serve`, `list`, `run`, `pull`, `rm`, and other Ollama commands against the portable store |
+| `install-portable-ollama-command.sh` | Symlinks `portable-ollama` into `~/.local/bin` |
 | `portable-llm-launcher.sh` | Starts Ollama with this repo's sibling `Ollama/models/llm` store |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows launcher for the same portable model-store layout |
 

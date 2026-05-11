@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../common/env.sh
+source "${SCRIPT_DIR}/../common/env.sh"
+
+usage() {
+  cat <<EOF
+Usage: portable-ollama <command> [args...]
+
+Runs Ollama against this repo's portable model store.
+
+Examples:
+  portable-ollama serve
+  portable-ollama list
+  portable-ollama run qwen3.6:35b
+  portable-ollama pull gemma3:12b
+  portable-ollama rm qwen3:8b
+
+Defaults:
+  OLLAMA_HOST=${OLLAMA_HOST:-127.0.0.1:14514}
+  OLLAMA_MODELS=${OLLAMA_MODELS}
+EOF
+}
+
+if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ -n "${OLLAMA_BIN:-}" ]]; then
+  ollama_bin="$OLLAMA_BIN"
+elif command -v ollama >/dev/null 2>&1; then
+  ollama_bin="$(command -v ollama)"
+else
+  cat >&2 <<EOF
+No Ollama executable found.
+
+Options:
+  1. Install Ollama on this host and rerun this command.
+  2. Set OLLAMA_BIN=/path/to/ollama.
+EOF
+  exit 1
+fi
+
+export OLLAMA_MODELS
+export OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:14514}"
+export OLLAMA_NO_CLOUD="${OLLAMA_NO_CLOUD:-1}"
+
+if [[ "${1:-}" == "serve" ]]; then
+  shift
+  export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-10m}"
+  export OLLAMA_NUM_PARALLEL="${OLLAMA_NUM_PARALLEL:-1}"
+  exec "${SCRIPT_DIR}/portable-llm-launcher.sh" "$@"
+fi
+
+exec "$ollama_bin" "$@"

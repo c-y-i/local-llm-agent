@@ -34,21 +34,26 @@ Run these from the portable drive repo:
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
+# Install the short command once on this host.
+./scripts/setup/install-portable-ollama-command.sh
+
 # Terminal 1: keep the portable server running.
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
 In another terminal:
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+portable-ollama list
+portable-ollama run qwen3:4b
 ```
 
 Script roles:
 
 | Script | What it does | Starts Ollama? |
 |---|---|---|
+| `portable-ollama` | Runs Ollama commands against the portable store; `serve` starts the portable server | Only with `serve` |
+| `install-portable-ollama-command.sh` | Symlinks `portable-ollama` into `~/.local/bin` | No |
 | `portable-llm-launcher.sh` | Starts Ollama with this repo's sibling `Ollama/models/llm` store | Yes |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows launcher for the same portable model-store layout | Yes |
 

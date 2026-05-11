@@ -27,21 +27,26 @@
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
+# 在这台宿主机上安装一次短命令。
+./scripts/setup/install-portable-ollama-command.sh
+
 # 终端 1：保持便携服务运行
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
 然后在另一个终端中：
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+portable-ollama list
+portable-ollama run qwen3:4b
 ```
 
 脚本职责一览：
 
 | 脚本 | 作用 | 会启动 Ollama？ |
 |---|---|---|
+| `portable-ollama` | 对便携模型库执行 Ollama 命令；`serve` 会启动便携服务 | 仅 `serve` 会 |
+| `install-portable-ollama-command.sh` | 将 `portable-ollama` 软链接到 `~/.local/bin` | 不会 |
 | `portable-llm-launcher.sh` | 使用本仓库同级的 `Ollama/models/llm` 模型库启动 Ollama | 会 |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows 下同一便携模型库布局的启动器 | 会 |
 

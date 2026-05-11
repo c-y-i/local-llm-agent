@@ -9,7 +9,7 @@
 | 模式 | 适用场景 | 启动命令 |
 |---|---|---|
 | 本机部署 | 模型存储和服务固定在一台机器上 | `./scripts/ollama/serve.sh` |
-| 便携部署 | 仓库和模型需要在多台机器间移动使用 | `OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh` |
+| 便携部署 | 仓库和模型需要在多台机器间移动使用 | `portable-ollama serve` |
 
 ## 快速开始
 
@@ -37,21 +37,26 @@ python3 control_panel.py               # 浏览器界面  →  http://localhost:
 ```bash
 cd /path/to/portable-drive/local-llm-agent
 
+# 在这台宿主机上安装一次短命令。
+./scripts/setup/install-portable-ollama-command.sh
+
 # 在 127.0.0.1:14514 启动便携 Ollama 服务。
-OLLAMA_HOST=127.0.0.1:14514 ./scripts/ollama/portable-llm-launcher.sh
+portable-ollama serve
 ```
 
 在另一个终端中使用同一端口：
 
 ```bash
-OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:4b
+portable-ollama list
+portable-ollama run qwen3:4b
 ```
 
 脚本职责：
 
 | 脚本 | 作用 |
 |---|---|
+| `portable-ollama` | 对便携模型库执行 `serve`、`list`、`run`、`pull`、`rm` 等 Ollama 命令 |
+| `install-portable-ollama-command.sh` | 将 `portable-ollama` 软链接到 `~/.local/bin` |
 | `portable-llm-launcher.sh` | 使用本仓库同级的 `Ollama/models/llm` 模型库启动 Ollama |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows 下同一便携模型库布局的启动器 |
 
