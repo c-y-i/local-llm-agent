@@ -8,7 +8,8 @@
 
 ```bash
 ./scripts/setup/check-prereqs.sh       # 检查依赖项
-./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次执行）
+./scripts/setup/install-ollama.sh      # 安装 Ollama 二进制及 systemd 服务
+./scripts/setup/configure-ollama.sh    # 配置模型路径和环境（仅首次执行）
 
 ./scripts/ollama/serve.sh              # 本机 Ollama，127.0.0.1:11434
 ollama run <model>

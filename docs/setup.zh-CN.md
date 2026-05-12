@@ -28,24 +28,6 @@
 
 如果目录不在默认位置，可以通过设置对应的环境变量覆盖。
 
-## 安装 Ollama
-
-使用本项目前，宿主机上必须先安装 Ollama。
-
-```bash
-# Linux / macOS
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Raspberry Pi（ARM64）——同一脚本即可，也可手动下载：
-curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
-chmod +x ~/ollama
-export OLLAMA_BIN=~/ollama   # 或将文件移到 PATH 中的目录
-```
-
-Windows：从 https://ollama.com/download 下载安装包。
-
-如果无法进行系统级安装，可将二进制文件下载到任意位置，并通过 `OLLAMA_BIN=/path/to/ollama` 指定。
-
 ## 引导式安装
 
 以下为本机部署的安装流程。
@@ -62,6 +44,16 @@ Windows：从 https://ollama.com/download 下载安装包。
 ./scripts/setup/build-llama-cpp.sh --dry-run
 ./scripts/setup/build-llama-cpp.sh
 ```
+
+安装 Ollama（二进制 + systemd 服务）：
+
+```bash
+./scripts/setup/install-ollama.sh --dry-run
+./scripts/setup/install-ollama.sh
+```
+
+如果无法使用脚本（如 Windows），可手动安装：
+`curl -fsSL https://ollama.com/install.sh | sh` 或从 https://ollama.com/download 下载。
 
 配置 Ollama 的 systemd override：
 
@@ -95,6 +87,7 @@ portable-ollama serve
 
 ```text
 local-llm-agent/
+  .local/                 # agent 运行时状态、虚拟环境与缓存
   models/                 # 本地 GGUF 文件（已加入 .gitignore）
   modelfiles/             # 轻量级 Ollama Modelfile
   scripts/common/         # 环境变量和状态辅助脚本
