@@ -11,23 +11,6 @@
   Ollama/
 ```
 
-## 路径默认值
-
-所有脚本都会加载 `scripts/common/env.sh`。
-
-| 变量 | 默认值 |
-|---|---|
-| `LOCAL_LLM_AGENT_ROOT` | 本仓库根目录 |
-| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
-| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
-| `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
-| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
-| `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
-| `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
-| `SERVICE_USER` | 运行服务安装脚本的用户 |
-
-如果目录不在默认位置，可以通过设置对应的环境变量覆盖。
-
 ## 引导式安装
 
 以下为本机部署的安装流程。
@@ -89,6 +72,23 @@ portable-ollama serve
 
 安装脚本会在 `~/.local/bin` 中创建软链接。如果 shell 找不到
 `portable-ollama`，请在该宿主机上把 `~/.local/bin` 加入 `PATH`，然后打开新终端。
+
+## 路径默认值
+
+所有脚本都会加载 `scripts/common/env.sh`。
+
+| 变量 | 默认值 |
+|---|---|
+| `LOCAL_LLM_AGENT_ROOT` | 本仓库根目录 |
+| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
+| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
+| `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
+| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
+| `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
+| `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
+| `SERVICE_USER` | 运行服务安装脚本的用户 |
+
+如果目录不在默认位置，可以通过设置对应的环境变量覆盖。
 
 ## 目录结构
 

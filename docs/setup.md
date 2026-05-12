@@ -17,23 +17,6 @@ settings are the parts that change.
   Ollama/
 ```
 
-## Path Defaults
-
-All scripts source `scripts/common/env.sh`.
-
-| Variable | Default |
-|---|---|
-| `LOCAL_LLM_AGENT_ROOT` | repo root |
-| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
-| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
-| `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
-| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
-| `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
-| `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
-| `SERVICE_USER` | user running the service installer |
-
-Override any of these when your folders live elsewhere.
-
 ## Guided Setup
 
 For a native host setup, use the setup flow below.
@@ -99,6 +82,23 @@ portable-ollama serve
 The installer creates a symlink in `~/.local/bin`. If the shell cannot find
 `portable-ollama`, add `~/.local/bin` to `PATH` on that host and open a new
 terminal.
+
+## Path Defaults
+
+All scripts source `scripts/common/env.sh`.
+
+| Variable | Default |
+|---|---|
+| `LOCAL_LLM_AGENT_ROOT` | repo root |
+| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
+| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
+| `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
+| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
+| `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
+| `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
+| `SERVICE_USER` | user running the service installer |
+
+Override any of these when your folders live elsewhere.
 
 ## Directory Layout
 
