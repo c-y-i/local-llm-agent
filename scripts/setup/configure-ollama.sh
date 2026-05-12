@@ -10,6 +10,13 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=1
 fi
 
+if ! command -v ollama >/dev/null 2>&1; then
+  echo "Warning: ollama not found. Install it first:" >&2
+  echo "  ./scripts/setup/install-ollama.sh" >&2
+  echo "Continuing to write systemd override (valid before install)." >&2
+  echo >&2
+fi
+
 OVERRIDE_DIR="/etc/systemd/system/ollama.service.d"
 OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
 TMP_FILE="$(mktemp)"

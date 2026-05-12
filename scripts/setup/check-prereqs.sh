@@ -14,6 +14,15 @@ check_cmd() {
   fi
 }
 
+check_cmd_optional() {
+  local name="$1"
+  if command -v "$name" >/dev/null 2>&1; then
+    printf 'ok   %-18s %s\n' "$name" "$(command -v "$name")"
+  else
+    printf 'opt  %-18s not found (optional)\n' "$name"
+  fi
+}
+
 echo "local-llm-agent paths"
 echo "  LOCAL_LLM_AGENT_ROOT=${LOCAL_LLM_AGENT_ROOT}"
 echo "  LLAMA_CPP_ROOT=${LLAMA_CPP_ROOT}"
@@ -28,7 +37,7 @@ for cmd in git cmake make cc c++ curl python3; do
 done
 check_cmd ollama
 check_cmd systemctl
-check_cmd nvidia-smi
+check_cmd_optional nvidia-smi
 echo
 
 if command -v nvidia-smi >/dev/null 2>&1; then

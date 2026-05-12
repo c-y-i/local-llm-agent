@@ -70,6 +70,13 @@ Build llama.cpp:
 ./scripts/setup/build-llama-cpp.sh
 ```
 
+Install Ollama:
+
+```bash
+./scripts/setup/install-ollama.sh --dry-run
+./scripts/setup/install-ollama.sh
+```
+
 Configure Ollama's systemd override:
 
 ```bash
