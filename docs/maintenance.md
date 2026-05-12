@@ -7,13 +7,13 @@ English | [简体中文](maintenance.zh-CN.md)
 Pull from Ollama and share the GGUF with llama.cpp:
 
 ```bash
-./scripts/ollama/pull-and-share.sh qwen3:4b
+./scripts/ollama/pull-and-share.sh <model>
 ```
 
 Import a GGUF already placed in `models/`:
 
 ```bash
-./scripts/ollama/import-to-ollama.sh my-model my-model:latest
+./scripts/ollama/import-to-ollama.sh <name> <name>:latest
 ```
 
 List and audit:
@@ -29,7 +29,7 @@ ollama list
 Remove from both Ollama and the shared model directory:
 
 ```bash
-./scripts/ollama/remove-model.sh qwen3:4b
+./scripts/ollama/remove-model.sh <model>
 ```
 
 Avoid deleting only one side unless you intentionally want to repair the symlink layer later.

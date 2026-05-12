@@ -15,7 +15,7 @@ Start Ollama and add a model:
 
 ```bash
 ./scripts/ollama/serve.sh
-ollama pull qwen2.5-coder:7b
+ollama pull <model>
 ollama launch vscode
 ```
 

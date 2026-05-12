@@ -12,12 +12,13 @@ plug them into agent workflows. Full control, private, and no token limits.
 ./scripts/setup/configure-ollama.sh    # set up Ollama (first time only)
 
 ./scripts/ollama/serve.sh              # native Ollama on 127.0.0.1:11434
-ollama run qwen3:4b
+ollama run <model>
 ```
 
-Portable drive users can run `./scripts/setup/install-portable-ollama-command.sh`
-once per host, then use `portable-ollama serve` and `portable-ollama run
-qwen3:4b`. Full guide: [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md).
+Portable drive users: Ollama must be installed on each host first (see
+[`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md#prerequisites)),
+then run `./scripts/setup/install-portable-ollama-command.sh` once per host and
+use `portable-ollama serve` / `portable-ollama run <model>`.
 
 ## Agents
 
@@ -54,7 +55,7 @@ Full guides: [`docs/claude-local.md`](docs/claude-local.md), [`docs/claude-code.
 
 ```bash
 ./scripts/ollama/serve.sh
-ollama pull qwen2.5-coder:7b
+ollama pull <model>
 ```
 
 Then select the local model in VS Code Copilot Chat.

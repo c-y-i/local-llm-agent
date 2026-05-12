@@ -13,15 +13,15 @@ These commands use the portable defaults from `scripts/common/env.sh`.
 ## Interactive Or One-Shot
 
 ```bash
-./scripts/llama-cpp/llm-run.sh qwen3-4b
-./scripts/llama-cpp/llm-run.sh qwen3-4b "Explain TCP slow start in two sentences."
+./scripts/llama-cpp/llm-run.sh <model>
+./scripts/llama-cpp/llm-run.sh <model> "Explain TCP slow start in two sentences."
 ```
 
 ## Direct llama.cpp Invocation
 
 ```bash
 $LLAMA_CPP_BIN \
-  -m "$LLM_MODELS_DIR/qwen3-4b.gguf" \
+  -m "$LLM_MODELS_DIR/<model>.gguf" \
   -ngl 999 -c 4096 \
   -p "Hello"
 ```
@@ -35,7 +35,7 @@ source ./scripts/common/env.sh
 ## OpenAI-Compatible Server
 
 ```bash
-./scripts/llama-cpp/llm-serve.sh qwen2.5-coder-3b 8080
+./scripts/llama-cpp/llm-serve.sh <model> 8080
 ```
 
 Endpoints:
@@ -85,7 +85,7 @@ Configure Cline with Base URL `http://127.0.0.1:8080/v1`, the model printed by t
 Example:
 
 ```bash
-N_GPU_LAYERS=16 ./scripts/llama-cpp/llm-run.sh qwen3-4b "hi"
+N_GPU_LAYERS=16 ./scripts/llama-cpp/llm-run.sh <model> "hi"
 ```
 
 ## VRAM Coordination With Ollama

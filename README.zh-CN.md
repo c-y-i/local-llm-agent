@@ -11,12 +11,13 @@
 ./scripts/setup/configure-ollama.sh    # 配置 Ollama（仅首次执行）
 
 ./scripts/ollama/serve.sh              # 本机 Ollama，127.0.0.1:11434
-ollama run qwen3:4b
+ollama run <model>
 ```
 
-便携硬盘用户可在每台宿主机上执行一次 `./scripts/setup/install-portable-ollama-command.sh`，
-然后使用 `portable-ollama serve` 和 `portable-ollama run qwen3:4b`。完整说明见
-[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md)。
+便携硬盘用户：每台宿主机需先安装 Ollama（参见
+[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md#前置条件)），
+然后执行一次 `./scripts/setup/install-portable-ollama-command.sh`，
+再使用 `portable-ollama serve` 和 `portable-ollama run <model>`。
 
 ## Agent 集成
 
@@ -53,7 +54,7 @@ claude-local   # 模型选择器 — 已加载的模型置顶，标记为 RUNNIN
 
 ```bash
 ./scripts/ollama/serve.sh
-ollama pull qwen2.5-coder:7b
+ollama pull <model>
 ```
 
 然后在 VS Code Copilot Chat 的模型选择器中即可看到本地模型。

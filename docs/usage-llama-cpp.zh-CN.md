@@ -19,7 +19,7 @@
 示例：
 
 ```bash
-./scripts/llama-cpp/llm-run.sh qwen2.5-coder-3b
+./scripts/llama-cpp/llm-run.sh <model>
 ```
 
 ## 启动 OpenAI 兼容服务
@@ -31,7 +31,7 @@
 示例：
 
 ```bash
-./scripts/llama-cpp/llm-serve.sh qwen2.5-coder-3b 8080
+./scripts/llama-cpp/llm-serve.sh <model> 8080
 ```
 
 服务端点：
@@ -51,7 +51,7 @@
 也可以指定模型和端口：
 
 ```bash
-./scripts/llama-cpp/cline-server.sh qwen2.5-coder-3b 8081
+./scripts/llama-cpp/cline-server.sh <model> 8081
 ```
 
 Cline 配置：

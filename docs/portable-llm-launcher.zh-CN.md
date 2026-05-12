@@ -18,6 +18,24 @@
 - `local-llm-agent/scripts/ollama/portable-llm-launcher.*` — 使用便携模型存储启动 Ollama
 - 启动器使用宿主机的 `ollama` 命令；如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`
 
+## 前置条件
+
+启动器使用**宿主机**上安装的 `ollama` 二进制文件——它本身不携带该文件。每台新主机都需要先安装 Ollama，再运行启动器：
+
+```bash
+# Linux / macOS
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Raspberry Pi（ARM64）——同一脚本即可，也可手动下载：
+curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
+chmod +x ~/ollama
+export OLLAMA_BIN=~/ollama   # 或将文件移到 PATH 中的目录
+```
+
+Windows：从 https://ollama.com/download 下载安装包。
+
+如果无法进行系统级安装，可将二进制文件下载到任意位置，并通过 `OLLAMA_BIN=/path/to/ollama` 指定。
+
 ## 启动
 
 本节仅适用于便携部署。本机部署请参考 [`usage-ollama.zh-CN.md`](usage-ollama.zh-CN.md) 和 `./scripts/ollama/serve.sh`。
@@ -41,7 +59,7 @@ portable-ollama serve
 
 ```bash
 portable-ollama list
-portable-ollama run qwen3:4b
+portable-ollama run <model>
 ```
 
 脚本职责一览：
@@ -81,25 +99,13 @@ $env:OLLAMA_HOST="127.0.0.1:14514"
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:30b
+OLLAMA_HOST=127.0.0.1:14514 ollama run <model>
 ```
 
 ## 模型选择
 
-在未知或配置较低的机器上优先使用小模型：
-
 ```bash
-ollama run qwen3:4b
-ollama run llama3.2:3b
-ollama run qwen2.5-coder:3b
-```
-
-只有在 RAM 或 VRAM 充足的机器上再使用较大的模型：
-
-```bash
-ollama run qwen3:14b
-ollama run qwen3:30b
-ollama run gemma3:12b
+ollama run <model>
 ```
 
 硬件分级和模型选择参考 [`hardware-matching.zh-CN.md`](hardware-matching.zh-CN.md)。

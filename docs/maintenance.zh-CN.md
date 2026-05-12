@@ -9,7 +9,7 @@
 将 GGUF 文件放入 `models/` 后：
 
 ```bash
-./scripts/ollama/import-to-ollama.sh my-model my-model:latest
+./scripts/ollama/import-to-ollama.sh <name> <name>:latest
 ```
 
 ## 检查软链接

@@ -18,7 +18,7 @@ Tuning here means changing runtime parameters, Ollama Modelfiles, or reusable pe
 
 ```bash
 N_CTX=8192 TEMP=0.2 TOP_P=0.9 REPEAT_PENALTY=1.1 \
-  ./scripts/llama-cpp/cline-server.sh qwen2.5-coder-3b
+  ./scripts/llama-cpp/cline-server.sh <model>
 ```
 
 ## Ollama Per-Call Options

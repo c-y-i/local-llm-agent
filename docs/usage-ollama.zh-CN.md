@@ -16,7 +16,7 @@ Ollama 是可选的，但对于拉取模型、非 Cline 的日常聊天以及维
 
 ```bash
 ollama list
-ollama run qwen3:1.7b
+ollama run <model>
 ```
 
 不要直接运行裸的 `ollama serve`，除非你同时设置了 `OLLAMA_MODELS`。否则 Ollama 的 daemon 进程可能会使用默认的空模型目录，导致 `ollama run <tag>` 时重新下载模型。
@@ -44,7 +44,7 @@ portable-ollama serve
 
 ```bash
 portable-ollama list
-portable-ollama run qwen3:4b
+portable-ollama run <model>
 ```
 
 `portable-ollama` 会把 `OLLAMA_MODELS` 指向本仓库同级的 `Ollama/models/llm`，使用 `OLLAMA_HOST=127.0.0.1:14514`，并调用宿主机上的 `ollama` 命令。需要指定可执行文件时，设置 `OLLAMA_BIN=/path/to/ollama`。
@@ -82,7 +82,7 @@ journalctl -u ollama -f
 导入 GGUF 文件：
 
 ```bash
-./scripts/ollama/import-to-ollama.sh my-model my-model:latest
+./scripts/ollama/import-to-ollama.sh <name> <name>:latest
 ```
 
 检查软链接：

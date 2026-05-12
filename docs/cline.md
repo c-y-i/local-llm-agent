@@ -89,7 +89,7 @@ The wrapper chooses conservative defaults because KV-cache size varies by model 
 Override only when you know it fits:
 
 ```bash
-N_CTX=8192 ./scripts/llama-cpp/cline-server.sh llama3.2-3b
+N_CTX=8192 ./scripts/llama-cpp/cline-server.sh <model>
 ```
 
 ## Custom Instructions

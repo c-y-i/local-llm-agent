@@ -23,6 +23,26 @@ host-specific; a foreground launcher is easier to move between computers.
 - The launcher uses the host's `ollama` command. Set
   `OLLAMA_BIN=/path/to/ollama` when you need a specific executable.
 
+## Prerequisites
+
+The launcher uses the **host machine's** `ollama` binary — it does not bundle
+one. On each new host, install Ollama before running the launcher:
+
+```bash
+# Linux / macOS
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Raspberry Pi (ARM64) — same script works, or download directly:
+curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
+chmod +x ~/ollama
+export OLLAMA_BIN=~/ollama   # or move to a directory in PATH
+```
+
+Windows: download the installer from https://ollama.com/download.
+
+If you cannot install system-wide, download the binary anywhere and point to it
+with `OLLAMA_BIN=/path/to/ollama`.
+
 ## Run The Launcher
 
 This section is only for the portable drive workflow. For native host use,
@@ -49,7 +69,7 @@ In another terminal:
 
 ```bash
 portable-ollama list
-portable-ollama run qwen3:4b
+portable-ollama run <model>
 ```
 
 Script roles:
@@ -92,32 +112,20 @@ PowerShell:
 ```powershell
 $env:OLLAMA_HOST="127.0.0.1:14514"
 ollama list
-ollama run qwen3:4b
+ollama run <model>
 ```
 
 Bash:
 
 ```bash
 OLLAMA_HOST=127.0.0.1:14514 ollama list
-OLLAMA_HOST=127.0.0.1:14514 ollama run qwen3:30b
+OLLAMA_HOST=127.0.0.1:14514 ollama run <model>
 ```
 
 ## Model Choice
 
-Use small models on unknown or weak machines:
-
 ```bash
-ollama run qwen3:4b
-ollama run llama3.2:3b
-ollama run qwen2.5-coder:3b
+ollama run <model>
 ```
 
-Use larger models only on machines with enough RAM or VRAM:
-
-```bash
-ollama run qwen3:14b
-ollama run qwen3:30b
-ollama run gemma3:12b
-```
-
-See [`hardware-matching.md`](hardware-matching.md) for hardware tiers.
+See [`hardware-matching.md`](hardware-matching.md) for hardware tier recommendations.

@@ -15,7 +15,7 @@ VS Code Copilot Chat 可以通过 Ollama 使用本地模型。实际体验取决
 准备模型：
 
 ```bash
-ollama pull qwen2.5-coder:7b
+ollama pull <model>
 ```
 
 然后在 VS Code Copilot Chat 的模型选择器中选择本地 Ollama 模型即可。

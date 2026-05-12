@@ -16,7 +16,7 @@ Then use another terminal:
 
 ```bash
 ollama list
-ollama run qwen3:1.7b
+ollama run <model>
 ```
 
 Verification: `ollama list` should show local models, and `ollama run <model>` should open a terminal chat:
@@ -46,7 +46,7 @@ Use the same `OLLAMA_HOST` in another terminal:
 
 ```bash
 portable-ollama list
-portable-ollama run qwen3:4b
+portable-ollama run <model>
 ```
 
 `portable-ollama` points `OLLAMA_MODELS` at this repo's sibling
@@ -93,9 +93,9 @@ Use `./scripts/ollama/start_ollama.sh` when you want the script to verify that t
 ```bash
 ollama list
 ollama ps
-ollama run llama3.2:3b
-ollama show qwen3:4b
-ollama stop qwen3:4b
+ollama run <model>
+ollama show <model>
+ollama stop <model>
 ```
 
 ## HTTP API
@@ -125,8 +125,8 @@ Install a conservative starter set of small Ollama models:
 This starter script intentionally avoids 7B+ pulls. It is friendly to CPU/SBC and small-GPU systems; larger machines can pull bigger tags from [`hardware-matching.md`](hardware-matching.md).
 
 ```bash
-./scripts/ollama/pull-and-share.sh qwen3:4b
-./scripts/ollama/import-to-ollama.sh my-model my-model:latest
+./scripts/ollama/pull-and-share.sh <model>
+./scripts/ollama/import-to-ollama.sh <name> <name>:latest
 ./scripts/ollama/check-symlinks.sh
 ./scripts/ollama/relink-to-ollama.sh
 ```

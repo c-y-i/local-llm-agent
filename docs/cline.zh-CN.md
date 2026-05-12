@@ -13,13 +13,13 @@
 指定模型：
 
 ```bash
-./scripts/llama-cpp/cline-server.sh qwen2.5-coder-3b
+./scripts/llama-cpp/cline-server.sh <model>
 ```
 
 指定端口：
 
 ```bash
-./scripts/llama-cpp/cline-server.sh qwen2.5-coder-3b 8081
+./scripts/llama-cpp/cline-server.sh <model> 8081
 ```
 
 ## Cline 配置
