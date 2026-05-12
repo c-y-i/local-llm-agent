@@ -41,6 +41,13 @@ if [[ "$DRY_RUN" == "1" ]]; then
 fi
 
 mkdir -p "$OLLAMA_MODELS"
+
+# The ollama systemd service runs as the 'ollama' system user; it must own
+# the model store root or it cannot create subdirectories at startup.
+if id ollama >/dev/null 2>&1; then
+  sudo chown -R ollama:ollama "$OLLAMA_ROOT"
+fi
+
 sudo mkdir -p "$OVERRIDE_DIR"
 sudo install -m 0644 "$TMP_FILE" "$OVERRIDE_FILE"
 sudo systemctl daemon-reload
