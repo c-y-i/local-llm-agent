@@ -69,6 +69,14 @@ Configure Ollama's systemd override:
 sudo systemctl start ollama
 ```
 
+If Ollama fails with `mkdir /home/...: permission denied`, your home directory
+is not traversable by the `ollama` service user. Fix with:
+
+```bash
+chmod o+x ~
+sudo systemctl start ollama
+```
+
 Install Cline's manual llama.cpp service:
 
 ```bash

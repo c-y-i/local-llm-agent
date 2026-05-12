@@ -63,6 +63,13 @@
 sudo systemctl start ollama
 ```
 
+如果 Ollama 报错 `mkdir /home/...: permission denied`，说明 `ollama` 服务用户无法进入你的主目录。修复方法：
+
+```bash
+chmod o+x ~
+sudo systemctl start ollama
+```
+
 安装 Cline 使用的 llama.cpp 服务：
 
 ```bash
