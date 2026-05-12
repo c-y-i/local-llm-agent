@@ -9,7 +9,8 @@ plug them into agent workflows. Full control, private, and no token limits.
 
 ```bash
 ./scripts/setup/check-prereqs.sh       # verify dependencies
-./scripts/setup/configure-ollama.sh    # set up Ollama (first time only)
+./scripts/setup/install-ollama.sh      # install Ollama binary + systemd service
+./scripts/setup/configure-ollama.sh    # configure model store and env (first time only)
 
 ./scripts/ollama/serve.sh              # native Ollama on 127.0.0.1:11434
 ollama run <model>
