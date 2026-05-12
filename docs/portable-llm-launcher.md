@@ -26,22 +26,8 @@ host-specific; a foreground launcher is easier to move between computers.
 ## Prerequisites
 
 The launcher uses the **host machine's** `ollama` binary — it does not bundle
-one. On each new host, install Ollama before running the launcher:
-
-```bash
-# Linux / macOS
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Raspberry Pi (ARM64) — same script works, or download directly:
-curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
-chmod +x ~/ollama
-export OLLAMA_BIN=~/ollama   # or move to a directory in PATH
-```
-
-Windows: download the installer from https://ollama.com/download.
-
-If you cannot install system-wide, download the binary anywhere and point to it
-with `OLLAMA_BIN=/path/to/ollama`.
+one. Install Ollama on each new host before running the launcher. See
+[`setup.md`](setup.md#install-ollama) for instructions.
 
 ## Run The Launcher
 

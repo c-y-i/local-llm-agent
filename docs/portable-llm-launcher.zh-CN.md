@@ -20,21 +20,7 @@
 
 ## 前置条件
 
-启动器使用**宿主机**上安装的 `ollama` 二进制文件——它本身不携带该文件。每台新主机都需要先安装 Ollama，再运行启动器：
-
-```bash
-# Linux / macOS
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Raspberry Pi（ARM64）——同一脚本即可，也可手动下载：
-curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
-chmod +x ~/ollama
-export OLLAMA_BIN=~/ollama   # 或将文件移到 PATH 中的目录
-```
-
-Windows：从 https://ollama.com/download 下载安装包。
-
-如果无法进行系统级安装，可将二进制文件下载到任意位置，并通过 `OLLAMA_BIN=/path/to/ollama` 指定。
+启动器使用**宿主机**上安装的 `ollama` 二进制文件——它本身不携带该文件。每台新主机插入移动硬盘前，请先安装 Ollama。安装方法参见 [`setup.zh-CN.md`](setup.zh-CN.md#安装-ollama)。
 
 ## 启动
 
