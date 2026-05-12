@@ -52,6 +52,33 @@ Prefer official or well-maintained model pages, recent quantizations, clear lice
 | `nomic-embed-text`, `bge-m3`, `embeddinggemma` | Embedding | Retrieval/search embeddings; not used as Cline chat models. |
 | GGUF repos tagged `llama.cpp` | Runtime format | Quantized model files for llama.cpp; choose family and quantization by use case. |
 
+## Pulling from Hugging Face
+
+Any GGUF model on Hugging Face can be pulled and run directly with Ollama using the `hf.co/` prefix — no separate download or conversion needed:
+
+```bash
+# Syntax
+ollama pull hf.co/<user>/<repo>:<quant-tag>
+ollama run  hf.co/<user>/<repo>:<quant-tag>
+
+# Example
+ollama pull hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+ollama run  hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+```
+
+The quant tag is the filename minus the model-name prefix and `.gguf` suffix — e.g. `Qwen2.5-14B-Instruct-Q4_K_M.gguf` → `:Q4_K_M`.
+
+**Recommended quantizations:**
+
+| Tag | Size vs quality |
+|---|---|
+| `Q4_K_M` | Best balance. Start here. |
+| `Q5_K_M` | Higher quality, more VRAM. Good if you have headroom. |
+| `IQ4_XS` | Slightly smaller than Q4_K_M, similar quality. |
+| `Q2_K` | Smallest, lowest quality. Use only when RAM is very tight. |
+
+Browse models at [huggingface.co/bartowski](https://huggingface.co/bartowski) — maintains reliable GGUF quantizations for most popular model families.
+
 ## Uncensored / Unrestricted Models
 
 These models have had safety fine-tuning removed or heavily reduced. They respond without refusals on most topics but have **no** tool-use capability (`tools` not in `capabilities`) so they cannot drive Cline agent loops — use them for freeform chat only.
@@ -60,25 +87,11 @@ These models have had safety fine-tuning removed or heavily reduced. They respon
 |---|---|---|---|---|
 | `dolphin-phi` 2.7B | `dolphin-phi:2.7b` | 1.6 GB | General chat (uncensored) | Dolphin fine-tune on Phi-2. Fits fully on GPU. Fast. |
 | `dolphin-llama3` 8B | `dolphin-llama3:8b` | 4.7 GB | General chat (uncensored) | Dolphin 2.9 fine-tune on Llama 3 8B. CPU-spill on 4 GB VRAM cards (~6–10 tok/s). |
-| `NemoMix-Unleashed` 12B | `hf.co/bartowski/NemoMix-Unleashed-12B-GGUF:Q4_K_M` | 7.5 GB | General chat (uncensored) | Mistral NeMo 12B base, unleashed fine-tune. Fully CPU on GTX 1050 Ti (~3–4 tok/s). Pulled from HuggingFace. |
-
-### Pulling uncensored models
-
-Models in the Ollama library pull normally:
 
 ```bash
 ollama pull dolphin-phi:2.7b
 ollama pull dolphin-llama3:8b
 ```
-
-Models not in the Ollama library can be pulled directly from HuggingFace by prefixing the repo path with `hf.co/`:
-
-```bash
-# Syntax: ollama pull hf.co/<user>/<repo>:<quant-tag>
-ollama pull hf.co/bartowski/NemoMix-Unleashed-12B-GGUF:Q4_K_M
-```
-
-The quant tag corresponds to the filename without the model-name prefix and `.gguf` suffix (e.g. `NemoMix-Unleashed-12B-Q4_K_M.gguf` → `:Q4_K_M`). Browse available quants at `https://huggingface.co/bartowski/NemoMix-Unleashed-12B-GGUF`.
 
 ## Local Names
 

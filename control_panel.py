@@ -478,13 +478,13 @@ h1{font-size:28px;line-height:1.15;font-weight:720;color:#fff;letter-spacing:0}
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding-top:2px}
 #ts{font-size:13px;color:var(--dim);white-space:nowrap}
 .mode{
-  font-size:12px;
+  font-size:14px;
   font-weight:700;
   border:1px solid var(--line);
   background:rgba(255,255,255,.04);
   color:var(--muted);
   border-radius:999px;
-  padding:5px 10px;
+  padding:7px 14px;
   white-space:nowrap;
 }
 .mode.on{border-color:rgba(54,215,131,.35);background:rgba(54,215,131,.1);color:var(--green)}
@@ -606,7 +606,7 @@ meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
     <h1>__APP_TITLE__</h1>
     <p class="subtitle">__APP_SUBTITLE__</p>
   </div>
-  <span class="header-right"><span id="mode" class="mode">—</span><span id="ts">—</span></span>
+  <span class="header-right"><a href="/chat" style="font-size:14px;font-weight:700;color:var(--blue);text-decoration:none;border:1px solid rgba(101,183,255,.3);background:rgba(101,183,255,.07);border-radius:999px;padding:7px 16px;white-space:nowrap" onmouseover="this.style.background='rgba(101,183,255,.14)'" onmouseout="this.style.background='rgba(101,183,255,.07)'">Chat</a><span id="mode" class="mode">—</span><span id="ts">—</span></span>
 </header>
 <div id="setup-banner" class="setup-banner"></div>
 <div class="grid">
@@ -616,6 +616,41 @@ meter.warn::-webkit-meter-optimum-value{background:var(--amber)}
   <section class="card"><h2>Storage</h2><div id="sto"><span class="na">loading...</span></div></section>
 </div>
 <section class="card"><h2>Models</h2><div id="mdl"><span class="na">loading...</span></div></section>
+<section class="card" style="margin-top:16px">
+  <h2>Pull from Hugging Face</h2>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+    Ollama can run any GGUF model directly from Hugging Face. Use the format below — no account needed.
+  </p>
+  <div style="background:#060708;border:1px solid rgba(255,255,255,.09);border-radius:5px;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:#d8dee2;margin-bottom:14px">
+    ollama run hf.co/&lt;user&gt;/&lt;repo&gt;:&lt;quant&gt;
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Recommended quantizations</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:16px">
+    <div style="background:#060708;border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:10px 12px">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--blue);margin-bottom:3px">Q4_K_M</div>
+      <div style="font-size:12px;color:var(--muted)">Best balance of size and quality. Start here.</div>
+    </div>
+    <div style="background:#060708;border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:10px 12px">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--blue);margin-bottom:3px">Q5_K_M</div>
+      <div style="font-size:12px;color:var(--muted)">Higher quality, more VRAM. Good if you have headroom.</div>
+    </div>
+    <div style="background:#060708;border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:10px 12px">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--blue);margin-bottom:3px">Q2_K</div>
+      <div style="font-size:12px;color:var(--muted)">Smallest, lowest quality. Use only if RAM is tight.</div>
+    </div>
+    <div style="background:#060708;border:1px solid rgba(255,255,255,.07);border-radius:5px;padding:10px 12px">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--blue);margin-bottom:3px">IQ4_XS</div>
+      <div style="font-size:12px;color:var(--muted)">Smaller than Q4_K_M, similar quality. Good compromise.</div>
+    </div>
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Example</p>
+  <div style="background:#060708;border:1px solid rgba(255,255,255,.09);border-radius:5px;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:#d8dee2;margin-bottom:10px">
+    ollama run hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+  </div>
+  <p style="font-size:12px;color:var(--dim)">
+    Browse models at <span style="color:var(--blue);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">huggingface.co/bartowski</span> &mdash; bartowski publishes reliable GGUF quantizations for most popular models.
+  </p>
+</section>
 </div>
 <div id="toast"></div>
 <script>
@@ -776,6 +811,219 @@ def dashboard_html():
         .replace("__APP_SUBTITLE__", APP_SUBTITLE)
     )
 
+
+CHAT_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local LLM Chat</title>
+<style>
+:root{
+  --bg:#08090a;--line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.16);
+  --text:#f4f7f8;--muted:#a4adb4;--dim:#7a848c;
+  --green:#36d783;--red:#ff6b6b;--blue:#65b7ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+.app{display:flex;flex-direction:column;height:100vh;max-width:860px;margin:0 auto;padding:0 24px}
+.app-header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:22px 0 16px;border-bottom:1px solid var(--line);flex-shrink:0;
+}
+.eyebrow{color:var(--blue);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+h1{font-size:26px;font-weight:720;color:#fff;line-height:1.15}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding-top:4px}
+a.back{font-size:12px;font-weight:700;color:var(--muted);text-decoration:none;border:1px solid var(--line-strong);border-radius:999px;padding:5px 11px;white-space:nowrap}
+a.back:hover{background:rgba(255,255,255,.05);color:var(--text)}
+select{
+  background:#0f1113;color:var(--text);border:1px solid var(--line-strong);
+  border-radius:4px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;outline:none;min-width:180px;
+}
+select:focus{border-color:rgba(101,183,255,.45)}
+button{border-radius:4px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent}
+button:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--line-strong)}
+.btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.05);color:var(--text);border-color:rgba(255,255,255,.22)}
+.messages{flex:1;overflow-y:auto;padding:20px 0;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.messages::-webkit-scrollbar{width:6px}
+.messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+.message{display:flex;gap:10px;max-width:88%}
+.message.user{align-self:flex-end;flex-direction:row-reverse}
+.message.assistant{align-self:flex-start}
+.msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:3px}
+.message.user .msg-avatar{background:rgba(101,183,255,.18);color:var(--blue)}
+.message.assistant .msg-avatar{background:rgba(54,215,131,.13);color:var(--green)}
+.msg-bubble{padding:11px 15px;border-radius:8px;font-size:15px;line-height:1.65;word-break:break-word}
+.message.user .msg-bubble{background:rgba(101,183,255,.09);border:1px solid rgba(101,183,255,.18)}
+.message.assistant .msg-bubble{background:#0f1113;border:1px solid rgba(255,255,255,.07)}
+.msg-bubble pre{background:#060708;border:1px solid rgba(255,255,255,.09);border-radius:5px;padding:11px 14px;margin:10px 0;overflow-x:auto;font-size:13px}
+.msg-bubble code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.msg-bubble p:not(:last-child){margin-bottom:7px}
+.cursor{display:inline-block;width:2px;height:.9em;background:var(--muted);margin-left:2px;vertical-align:text-bottom;animation:blink .85s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;color:var(--dim);font-size:14px;text-align:center;padding:40px 0}
+.empty-icon{font-size:36px;line-height:1;margin-bottom:4px;color:var(--muted)}
+.input-bar{padding:14px 0 20px;border-top:1px solid var(--line);flex-shrink:0}
+.input-wrap{display:flex;gap:8px;align-items:flex-end}
+textarea{flex:1;background:#0f1113;border:1px solid var(--line-strong);border-radius:6px;color:var(--text);font:inherit;font-size:15px;padding:10px 14px;resize:none;min-height:44px;max-height:180px;outline:none;line-height:1.55}
+textarea:focus{border-color:rgba(101,183,255,.38)}
+textarea::placeholder{color:var(--dim)}
+.send-btn{background:#e8eaeb;color:#0d0f10;border:none;border-radius:6px;padding:0 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;height:44px}
+.send-btn:hover:not(:disabled){background:#f4f6f7}
+.send-btn:disabled{opacity:.4;cursor:not-allowed}
+#toast{position:fixed;top:16px;right:16px;max-width:300px;padding:10px 14px;border-radius:6px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:100}
+#toast.show{opacity:1;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.28);color:var(--red)}
+@media(max-width:680px){
+  .app{padding:0 14px}.message{max-width:96%}h1{font-size:22px}
+  .app-header{flex-direction:column;gap:8px}.header-right{margin-top:0}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div>
+      <div class="eyebrow">Local runtime</div>
+      <h1>Local LLM Chat</h1>
+    </div>
+    <div class="header-right">
+      <select id="model-sel" title="Select model"><option value="">loading models…</option></select>
+      <button class="btn-ghost" id="new-btn" onclick="newChat()">New chat</button>
+      <a class="back" href="/">← Dashboard</a>
+    </div>
+  </header>
+  <div class="messages" id="messages">
+    <div class="empty-state" id="empty">
+      <div class="empty-icon">&#x2B50;</div>
+      <div>Select a model and start chatting</div>
+    </div>
+  </div>
+  <div class="input-bar">
+    <div class="input-wrap">
+      <textarea id="input" placeholder="Message…" rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+var chatMsgs=[];
+var streaming=false;
+
+function esc(s){var d=document.createElement("div");d.appendChild(document.createTextNode(String(s)));return d.innerHTML;}
+
+function renderMd(text){
+  var html="",lines=text.split("\\n"),inCode=false,codeAcc=[];
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i];
+    if(!inCode&&line.startsWith("```")){inCode=true;codeAcc=[];}
+    else if(inCode&&line.startsWith("```")){inCode=false;html+="<pre><code>"+esc(codeAcc.join("\\n"))+"</code></pre>";}
+    else if(inCode){codeAcc.push(line);}
+    else{
+      var l=esc(line);
+      l=l.replace(/`([^`]+)`/g,"<code>$1</code>");
+      l=l.replace(/[*][*]([^*]+)[*][*]/g,"<strong>$1</strong>");
+      l=l.replace(/[*]([^*]+)[*]/g,"<em>$1</em>");
+      html+=l.trim()?"<p>"+l+"</p>":"<p style='margin:3px 0'></p>";
+    }
+  }
+  if(inCode&&codeAcc.length){html+="<pre><code>"+esc(codeAcc.join("\\n"))+"</code></pre>";}
+  return html;
+}
+
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.className="show";setTimeout(function(){t.className="";},4500);}
+function autoResize(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}
+function handleKey(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function scrollBot(){var m=document.getElementById("messages");m.scrollTop=m.scrollHeight;}
+
+function newChat(){
+  if(streaming)return;
+  chatMsgs=[];
+  document.getElementById("messages").innerHTML="<div class='empty-state' id='empty'><div class='empty-icon'>&#x2B50;</div><div>Select a model and start chatting</div></div>";
+}
+
+function appendMsg(role,content){
+  var empty=document.getElementById("empty");if(empty)empty.remove();
+  var wrap=document.createElement("div");wrap.className="message "+role;
+  var av=document.createElement("div");av.className="msg-avatar";av.textContent=role==="user"?"U":"AI";
+  var bub=document.createElement("div");bub.className="msg-bubble";
+  bub.innerHTML=role==="user"?"<p>"+esc(content)+"</p>":renderMd(content)+"<span class='cursor'></span>";
+  wrap.appendChild(av);wrap.appendChild(bub);
+  document.getElementById("messages").appendChild(wrap);
+  scrollBot();return bub;
+}
+
+async function sendMessage(){
+  if(streaming)return;
+  var input=document.getElementById("input");
+  var text=input.value.trim();if(!text)return;
+  var model=document.getElementById("model-sel").value;
+  if(!model){toast("Select a model first");return;}
+  input.value="";input.style.height="auto";
+  appendMsg("user",text);
+  chatMsgs.push({role:"user",content:text});
+  var bubble=appendMsg("assistant","");
+  streaming=true;
+  document.getElementById("send-btn").disabled=true;
+  document.getElementById("new-btn").disabled=true;
+  var fullText="";
+  try{
+    var resp=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:model,messages:chatMsgs})});
+    if(!resp.ok)throw new Error("HTTP "+resp.status);
+    var reader=resp.body.getReader(),decoder=new TextDecoder(),buf="";
+    while(true){
+      var ref=await reader.read();if(ref.done)break;
+      buf+=decoder.decode(ref.value,{stream:true});
+      var parts=buf.split("\\n");buf=parts.pop();
+      for(var i=0;i<parts.length;i++){
+        var ln=parts[i];if(!ln.startsWith("data: "))continue;
+        try{
+          var chunk=JSON.parse(ln.slice(6));
+          if(chunk.error){toast(chunk.error);break;}
+          if(chunk.delta){fullText+=chunk.delta;bubble.innerHTML=renderMd(fullText)+"<span class='cursor'></span>";scrollBot();}
+          if(chunk.done)break;
+        }catch(e){}
+      }
+    }
+    bubble.innerHTML=renderMd(fullText);
+    chatMsgs.push({role:"assistant",content:fullText});
+  }catch(e){
+    bubble.innerHTML="<span style='color:var(--red)'>"+esc(String(e))+"</span>";
+    toast("Request failed");chatMsgs.pop();
+  }
+  streaming=false;
+  document.getElementById("send-btn").disabled=false;
+  document.getElementById("new-btn").disabled=false;
+  document.getElementById("input").focus();scrollBot();
+}
+
+async function loadModels(){
+  try{
+    var r=await fetch("/api/models"),d=await r.json();
+    var sel=document.getElementById("model-sel");sel.innerHTML="";
+    if(!d.reachable){sel.innerHTML="<option value=''>Ollama not running</option>";return;}
+    if(!d.models||!d.models.length){sel.innerHTML="<option value=''>no models pulled</option>";return;}
+    for(var i=0;i<d.models.length;i++){
+      var opt=document.createElement("option");
+      opt.value=d.models[i].name;
+      opt.textContent=d.models[i].name+" ("+d.models[i].size_gb+" GB)";
+      sel.appendChild(opt);
+    }
+  }catch(e){document.getElementById("model-sel").innerHTML="<option value=''>error loading models</option>";}
+}
+loadModels();
+document.getElementById("input").focus();
+</script>
+</body>
+</html>"""
+
+
+def chat_html():
+    return CHAT_HTML
+
 # ---------------------------------------------------------------------------
 # Aggregator
 # ---------------------------------------------------------------------------
@@ -849,11 +1097,92 @@ class MonitorHandler(BaseHTTPRequestHandler):
             except Exception:
                 self.send_response(500)
                 self.end_headers()
+        elif self.path == "/chat":
+            body = chat_html().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/api/models":
+            state = get_ollama()
+            self._send_json({
+                "reachable": state.get("reachable", False),
+                "models": state.get("models", []),
+            })
         else:
             self.send_response(404)
             self.end_headers()
 
+    def _sse(self, data: dict) -> bytes:
+        return ("data: " + json.dumps(data) + "\n\n").encode()
+
+    def _handle_chat(self):
+        try:
+            body = self._read_json()
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, 400)
+            return
+        model = str(body.get("model", "")).strip()
+        messages = body.get("messages", [])
+        if not model:
+            self._send_json({"error": "model is required"}, 400)
+            return
+        clean = []
+        if isinstance(messages, list):
+            for msg in messages:
+                if not isinstance(msg, dict):
+                    continue
+                role = str(msg.get("role", "")).strip()
+                content = str(msg.get("content", ""))
+                if role in ("user", "assistant", "system") and content:
+                    clean.append({"role": role, "content": content})
+        import urllib.error as _ue
+        payload = json.dumps({"model": model, "messages": clean, "stream": True}).encode()
+        req = urllib.request.Request(
+            "http://localhost:11434/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                for raw in resp:
+                    line = raw.strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = chunk.get("message", {}).get("content", "")
+                    done = bool(chunk.get("done", False))
+                    self.wfile.write(self._sse({"delta": delta, "done": done}))
+                    self.wfile.flush()
+                    if done:
+                        break
+        except _ue.HTTPError as exc:
+            try:
+                self.wfile.write(self._sse({"error": f"Ollama HTTP {exc.code}", "done": True}))
+                self.wfile.flush()
+            except Exception:
+                pass
+        except Exception as exc:
+            try:
+                self.wfile.write(self._sse({"error": str(exc), "done": True}))
+                self.wfile.flush()
+            except Exception:
+                pass
+
     def do_POST(self):
+        if self.path == "/api/chat":
+            self._handle_chat()
+            return
         if self.path not in ("/api/actions/service", "/api/actions/ollama"):
             self.send_response(404)
             self.end_headers()

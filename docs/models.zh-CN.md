@@ -28,6 +28,33 @@ Claude Code 对工具调用和响应格式要求较高。推荐从以下模型�
 
 Cline 和其他 agent loop 需要模型能稳定输出符合格式要求的工具调用。如果模型持续输出错误的 XML 或 JSON tool call，请参考 `.clinerules` 和 [`cline.zh-CN.md`](cline.zh-CN.md)，或换用更适合代码和工具调用的模型。
 
+## 从 Hugging Face 拉取模型
+
+Hugging Face 上的任意 GGUF 模型均可通过 `hf.co/` 前缀直接用 Ollama 拉取和运行，无需单独下载或转换：
+
+```bash
+# 格式
+ollama pull hf.co/<用户>/<仓库>:<量化标签>
+ollama run  hf.co/<用户>/<仓库>:<量化标签>
+
+# 示例
+ollama pull hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+ollama run  hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+```
+
+量化标签对应文件名去掉模型名前缀和 `.gguf` 后缀，例如 `Qwen2.5-14B-Instruct-Q4_K_M.gguf` → `:Q4_K_M`。
+
+**推荐量化方式：**
+
+| 标签 | 大小与质量 |
+|---|---|
+| `Q4_K_M` | 大小与质量最佳平衡，首选。 |
+| `Q5_K_M` | 质量更高，显存占用更多，显存充裕时推荐。 |
+| `IQ4_XS` | 比 Q4_K_M 略小，质量相近。 |
+| `Q2_K` | 体积最小，质量最低，仅在内存极度受限时使用。 |
+
+可在 [huggingface.co/bartowski](https://huggingface.co/bartowski) 浏览模型——该账号为主流模型系列提供了可靠的 GGUF 量化版本。
+
 ## 无限制模型（Uncensored）
 
 这些模型的安全微调已被移除或大幅削减，对大多数话题不会拒绝回答。**没有** `tools` 能力，无法用于 Cline agent 工作流，仅适合自由聊天。
@@ -36,29 +63,10 @@ Cline 和其他 agent loop 需要模型能稳定输出符合格式要求的工�
 |---|---|---|---|---|
 | dolphin-phi 2.7B | `dolphin-phi:2.7b` | 1.6 GB | 完全在 GPU | 基于 Phi-2 的 Dolphin 微调，速度快，体积小。 |
 | dolphin-llama3 8B | `dolphin-llama3:8b` | 4.7 GB | CPU 溢出 | 基于 Llama 3 8B 的 Dolphin 2.9 微调，效果更强，GTX 1050 Ti 上约 6–10 tok/s。 |
-| NemoMix-Unleashed 12B | `hf.co/bartowski/NemoMix-Unleashed-12B-GGUF:Q4_K_M` | 7.5 GB | 完全 CPU | 基于 Mistral NeMo 12B 的 unleashed 微调，三者中质量最高，速度最慢（约 3–4 tok/s）。从 HuggingFace 拉取，不在 Ollama 官方库中。 |
-
-### 拉取无限制模型
 
 ```bash
-# Ollama 官方库中的模型，直接拉取：
 ollama pull dolphin-phi:2.7b
 ollama pull dolphin-llama3:8b
-
-# 不在 Ollama 库中的模型，通过 HuggingFace 拉取：
-# 格式：ollama pull hf.co/<用户>/<仓库>:<量化标签>
-ollama pull hf.co/bartowski/NemoMix-Unleashed-12B-GGUF:Q4_K_M
-```
-
-量化标签对应文件名去掉模型名前缀和 `.gguf` 后缀。可在以下页面浏览可用量化版本：
-`https://huggingface.co/bartowski/NemoMix-Unleashed-12B-GGUF`
-
-### 运行
-
-```bash
-ollama run dolphin-phi:2.7b
-ollama run dolphin-llama3:8b
-ollama run 'hf.co/bartowski/NemoMix-Unleashed-12B-GGUF:Q4_K_M'
 ```
 
 ## 维护原则
