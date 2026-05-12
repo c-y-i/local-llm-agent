@@ -34,25 +34,6 @@ All scripts source `scripts/common/env.sh`.
 
 Override any of these when your folders live elsewhere.
 
-## Install Ollama
-
-Ollama must be installed on the host before using this project.
-
-```bash
-# Linux / macOS
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Raspberry Pi (ARM64) — same script works, or download directly:
-curl -L https://ollama.com/download/ollama-linux-arm64 -o ~/ollama
-chmod +x ~/ollama
-export OLLAMA_BIN=~/ollama   # or move to a directory in PATH
-```
-
-Windows: download the installer from https://ollama.com/download.
-
-If you cannot install system-wide, place the binary anywhere and point to it
-with `OLLAMA_BIN=/path/to/ollama`.
-
 ## Guided Setup
 
 For a native host setup, use the setup flow below.
@@ -70,12 +51,15 @@ Build llama.cpp:
 ./scripts/setup/build-llama-cpp.sh
 ```
 
-Install Ollama:
+Install Ollama (binary + systemd service):
 
 ```bash
 ./scripts/setup/install-ollama.sh --dry-run
 ./scripts/setup/install-ollama.sh
 ```
+
+If you cannot use the script (e.g. Windows), install manually:
+`curl -fsSL https://ollama.com/install.sh | sh` or download from https://ollama.com/download.
 
 Configure Ollama's systemd override:
 
