@@ -25,7 +25,7 @@ else
 fi
 
 run cmake -B "${LLAMA_CPP_ROOT}/build" -S "${LLAMA_CPP_ROOT}/src" \
-  -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+  -DCMAKE_BUILD_TYPE=Release
 run cmake --build "${LLAMA_CPP_ROOT}/build" -j"$(nproc)"
 
 echo
