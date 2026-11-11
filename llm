@@ -11,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -570,6 +571,35 @@ def _warm_ollama_model(
     env: dict[str, str], model: str, context: int | None = None
 ) -> int:
     base_url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    if context:
+        current_context = _ollama_loaded_model_context(env, model)
+        tag_context = _ollama_tag_context(env, model)
+        if current_context is not None and (
+            current_context != context or tag_context != context
+        ):
+            unload_payload = json.dumps(
+                {
+                    "model": model,
+                    "prompt": ".",
+                    "stream": False,
+                    "keep_alive": 0,
+                    "options": {"num_predict": 0},
+                }
+            ).encode()
+            unload_request = urllib.request.Request(
+                f"{base_url}/api/generate",
+                data=unload_payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(unload_request, timeout=30):
+                    pass
+            except Exception as exc:
+                print(f"error: could not reload {model}: {exc}", file=sys.stderr)
+                return 2
+        if not _set_ollama_tag_context(env, model, context):
+            return 2
     options = {"num_predict": 0}
     if context:
         options["num_ctx"] = context
@@ -594,9 +624,126 @@ def _warm_ollama_model(
     except Exception as exc:
         print(f"error: could not load {model}: {exc}", file=sys.stderr)
         return 2
+    _invalidate_hermes_context_cache(env, model)
     suffix = f" ({context // 1024}K context)" if context else ""
     print(f"Loaded {model}{suffix}")
     return 0
+
+
+def _ollama_loaded_model_context(
+    env: dict[str, str], model: str
+) -> int | None:
+    base_url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{base_url}/api/ps", timeout=2) as response:
+            body = json.loads(response.read())
+    except Exception:
+        return None
+    for item in body.get("models", []):
+        if not isinstance(item, dict):
+            continue
+        if model in (item.get("name"), item.get("model")):
+            context = item.get("context_length")
+            return int(context) if isinstance(context, int) and context > 0 else None
+    return None
+
+
+def _invalidate_hermes_context_cache(
+    env: dict[str, str], model: str
+) -> None:
+    cache_path = get_paths()["hermes"] / "context_length_cache.yaml"
+    if not cache_path.is_file():
+        return
+    base_url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    key_prefix = f"  {model}@{base_url}/v1:"
+    try:
+        lines = cache_path.read_text().splitlines(keepends=True)
+    except OSError:
+        return
+    filtered = [line for line in lines if not line.startswith(key_prefix)]
+    if len(filtered) != len(lines):
+        cache_path.write_text("".join(filtered))
+
+
+def _ollama_tag_context(env: dict[str, str], model: str) -> int | None:
+    try:
+        shown = subprocess.run(
+            ["ollama", "show", model, "--modelfile"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(
+        r"^PARAMETER num_ctx\s+(\d+)\s*$",
+        shown.stdout,
+        flags=re.MULTILINE,
+    )
+    return int(match.group(1)) if match else None
+
+
+def _set_ollama_tag_context(
+    env: dict[str, str], model: str, context: int
+) -> bool:
+    try:
+        shown = subprocess.run(
+            ["ollama", "show", model, "--modelfile"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"error: could not inspect {model}: {exc}", file=sys.stderr)
+        return False
+    if shown.returncode != 0:
+        print(
+            f"error: could not inspect {model}: {shown.stderr.strip()}",
+            file=sys.stderr,
+        )
+        return False
+    if re.search(
+        rf"^PARAMETER num_ctx {context}$", shown.stdout, flags=re.MULTILINE
+    ):
+        return True
+    lines = [
+        line
+        for line in shown.stdout.splitlines()
+        if not re.match(r"^PARAMETER num_ctx\s+", line)
+    ]
+    while lines and not lines[-1].strip():
+        lines.pop()
+    lines.append(f"PARAMETER num_ctx {context}")
+    modelfile = "\n".join(lines) + "\n"
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", prefix="llm-ollama-", suffix=".modelfile", delete=False
+        ) as handle:
+            handle.write(modelfile)
+            temp_path = Path(handle.name)
+        created = subprocess.run(
+            ["ollama", "create", model, "-f", str(temp_path)],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"error: could not update {model}: {exc}", file=sys.stderr)
+        return False
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+    if created.returncode != 0:
+        print(
+            f"error: could not update {model}: {created.stderr.strip()}",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def _ollama_context_profile(model: str) -> tuple[tuple[int, ...], int]:

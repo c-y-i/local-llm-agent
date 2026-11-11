@@ -57,6 +57,16 @@ HERMES_HOME=/home/cy/LLM/hermes-local \
   hermes config unset model.ollama_num_ctx
 ```
 
+Ollama 还应同时检查运行时和标签配置：
+
+```bash
+ollama ps
+ollama show MODEL --modelfile | grep 'PARAMETER num_ctx'
+```
+
+两者必须一致。通过 `llm start ollama --context ...` 启动会自动重新加载模型、
+更新标签并使 Hermes 的过期缓存失效。
+
 ## CUDA 显存不足
 
 CLI 正常会保证同一时间只运行一个引擎。如果仍有旧服务运行，请先停止它，再

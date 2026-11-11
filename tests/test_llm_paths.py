@@ -413,8 +413,32 @@ class TestLLMCTL(unittest.TestCase):
             32768,
         )
 
+    def test_invalidates_stale_hermes_ollama_context_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            cache = home / "context_length_cache.yaml"
+            cache.write_text(
+                "context_lengths:\n"
+                "  keep@http://other/v1: 1234\n"
+                "  model:tag@http://127.0.0.1:11434/v1: 65536\n"
+            )
+            with patch.object(
+                llm_cli, "get_paths", return_value={"hermes": home}
+            ):
+                llm_cli._invalidate_hermes_context_cache(
+                    {"OLLAMA_BASE_URL": "http://127.0.0.1:11434"},
+                    "model:tag",
+                )
+            self.assertNotIn("model:tag@", cache.read_text())
+            self.assertIn("keep@http://other/v1: 1234", cache.read_text())
+
+    @patch.object(llm_cli, "_set_ollama_tag_context", return_value=True)
+    @patch.object(llm_cli, "_ollama_tag_context", return_value=131072)
+    @patch.object(llm_cli, "_ollama_loaded_model_context", return_value=None)
     @patch.object(llm_cli.urllib.request, "urlopen")
-    def test_ollama_warmup_passes_selected_context(self, mock_open):
+    def test_ollama_warmup_passes_selected_context(
+        self, mock_open, _mock_current, _mock_tag, _mock_set
+    ):
         response = mock_open.return_value.__enter__.return_value
         result = llm_cli._warm_ollama_model(
             {"OLLAMA_BASE_URL": "http://127.0.0.1:11434"},
@@ -425,6 +449,24 @@ class TestLLMCTL(unittest.TestCase):
         request = mock_open.call_args.args[0]
         payload = json.loads(request.data)
         self.assertEqual(payload["options"]["num_ctx"], 131072)
+
+    @patch.object(llm_cli, "_ollama_loaded_model_context", return_value=65536)
+    @patch.object(llm_cli, "_ollama_tag_context", return_value=65536)
+    @patch.object(llm_cli, "_set_ollama_tag_context", return_value=True)
+    @patch.object(llm_cli.urllib.request, "urlopen")
+    def test_ollama_reloads_when_selected_context_differs(
+        self, mock_open, _mock_set, _mock_tag, _mock_current
+    ):
+        result = llm_cli._warm_ollama_model(
+            {"OLLAMA_BASE_URL": "http://127.0.0.1:11434"},
+            "qwen3.5-2b-official:latest",
+            131072,
+        )
+        self.assertEqual(result, 0)
+        unload = json.loads(mock_open.call_args_list[0].args[0].data)
+        warm = json.loads(mock_open.call_args_list[1].args[0].data)
+        self.assertEqual(unload["keep_alive"], 0)
+        self.assertEqual(warm["options"]["num_ctx"], 131072)
 
     def test_f16_context_menu_offers_128k_and_256k(self):
         self.assertEqual(

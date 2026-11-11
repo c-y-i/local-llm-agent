@@ -77,6 +77,10 @@ llm start ollama qwen3.5-2b-official:latest --context 131072
 OLLAMA_NUM_CTX=131072 llm start ollama
 ```
 
+Changing the context unloads and reloads the Ollama model, updates the tag's
+`num_ctx`, and invalidates Hermes's cached context entry. Restart an already
+running Hermes session after changing the context.
+
 If Ollama is not running, `llm start ollama` starts it as a managed background
 daemon with output written to `$LLM_ROOT/run/ollama.log`.
 

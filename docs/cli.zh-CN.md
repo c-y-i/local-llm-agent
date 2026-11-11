@@ -66,6 +66,9 @@ llm start ollama qwen3.5-2b-official:latest --context 131072
 OLLAMA_NUM_CTX=131072 llm start ollama
 ```
 
+修改上下文会卸载并重新加载 Ollama 模型，同时更新标签的 `num_ctx` 并使 Hermes
+上下文缓存失效。已经运行的 Hermes 会话需要重启后才能使用新值。
+
 如果 Ollama 尚未运行，`llm start ollama` 会把它作为后台守护进程启动，日志写入
 `$LLM_ROOT/run/ollama.log`。
 

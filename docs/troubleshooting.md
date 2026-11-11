@@ -71,6 +71,16 @@ HERMES_HOME=/home/cy/LLM/hermes-local \
   hermes config unset model.ollama_num_ctx
 ```
 
+For Ollama, also verify both runtime and tag settings:
+
+```bash
+ollama ps
+ollama show MODEL --modelfile | grep 'PARAMETER num_ctx'
+```
+
+These values must match. Starting through `llm start ollama --context ...`
+reloads the model, updates the tag, and invalidates Hermes's stale cache.
+
 ## CUDA Out Of Memory
 
 The CLI normally enforces one engine at a time. If a legacy server is still
