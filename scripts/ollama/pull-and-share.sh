@@ -91,10 +91,16 @@ if [[ ! -f "$src" || -L "$src" ]]; then
 fi
 
 echo "==> Moving blob to ${dst} and symlinking back"
-sudo -A -p '' mv "$src" "$dst"
-sudo -A -p '' ln -s "$dst" "$src"
-sudo -A -p '' chown "${SERVICE_USER}:ollama" "$dst"
-sudo -A -p '' chmod 644 "$dst"
+if [[ -w "$src" && -w "$(dirname "$src")" && -w "$LLM_MODELS" ]]; then
+  mv "$src" "$dst"
+  ln -s "$dst" "$src"
+  chmod 644 "$dst"
+else
+  sudo -A -p '' mv "$src" "$dst"
+  sudo -A -p '' ln -s "$dst" "$src"
+  sudo -A -p '' chown "${SERVICE_USER}:ollama" "$dst"
+  sudo -A -p '' chmod 644 "$dst"
+fi
 
 echo "==> Verifying"
 ls -la "$src"

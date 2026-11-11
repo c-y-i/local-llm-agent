@@ -18,4 +18,15 @@ resolved="$(readlink -f "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$resolved")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
+# Direct agent commands are installed globally and should work from any
+# directory without requiring the caller to activate the managed venv first.
+VENV_ACTIVATE="${REPO_ROOT}/.venv/bin/activate"
+if [[ ! -f "$VENV_ACTIVATE" ]]; then
+  echo "Managed Python environment not found: $VENV_ACTIVATE" >&2
+  echo "Run ${REPO_ROOT}/scripts/setup/install-llm.sh first." >&2
+  exit 3
+fi
+# shellcheck disable=SC1090
+source "$VENV_ACTIVATE"
+
 exec "${REPO_ROOT}/llm" agent "$agent" -- "$@"

@@ -2,191 +2,144 @@
 
 [English](README.md) | 简体中文
 
-本地化部署的 LLM agent 工作区——在自有硬件上运行模型，对接 agent 工作流。数据完全自主可控，无 token 限制，隐私安全。
+在自有硬件上运行本地编码模型，并连接 Claude Code、Codex CLI 或 Hermes Agent。
+仓库只保存代码、文档和小型配置；模型权重、引擎构建和运行状态都放在仓库外。
 
-仓库只保存代码、文档和小型配置。模型、引擎构建、缓存和虚拟环境统一放在
-`LLM_ROOT` 下，默认是 `~/LLM`。
+## 参考配置和已验证 Agent
 
-## CLI
+参考配置是 6 GB 显存的 RTX 3050 Laptop GPU。当前流程已在该硬件上完成
+端到端验证：
+
+- Claude Code
+- Codex CLI
+- Hermes Agent
+
+三个 Agent 共同使用的测试后端是 llama.cpp 和官方 Qwen3.5-4B Q4_K_M。
+Hermes 还使用官方 Qwen3.5-2B 验证了大上下文窗口。这些模型只是该硬件档位的
+示例，不是强制要求；显存和内存更大的机器可以选择更大、更强的模型。
+
+## 当前范围
+
+| 组件 | 状态 | 地址 |
+|---|---|---|
+| llama.cpp | 主要本地后端 | `http://127.0.0.1:8080` |
+| Ollama | 辅助后端和模型存储 | `http://127.0.0.1:11434` |
+| Claude Code | 已验证 | llama.cpp 原生，Ollama 通过兼容代理 |
+| Codex CLI | 已验证 | llama.cpp Responses provider |
+| Hermes Agent | 已验证 | OpenAI 兼容端点 |
+| vLLM | 暂缓 | 不属于当前硬件工作流 |
+| Strata | 暂缓 | 不属于当前硬件工作流 |
+
+旧的 Cline、Copilot、控制面板、便携启动器、vLLM 和 Strata 文档及截图已暂时
+移除。当前文档只描述经过验证的本地 Agent 路径。
+
+## 安装
 
 ```bash
 ./scripts/setup/install-llm.sh
 source .venv/bin/activate
-llm
-llm setup
-llm start
-llm agent
-llm doctor
-llm build llama-cpp
-llm install vllm
-llm claude --backend llama-cpp --model qwen3.5-4b
+llm --version
 ```
 
-同时安装了直接启动本地 Agent 的命令：
-
-```bash
-source .venv/bin/activate
-claude-local
-codex-local
-hermes-local
-```
-
-模型启动、安装和状态查看继续使用 `llm`。
-
-复制 `.env.example` 为 `.env` 即可自定义 `LLM_ROOT` 或其他目录。
+`llm` 需要受管理的 Python 环境；`*-local` Agent 命令会自动激活它。
 
 ## 快速开始
 
+先检查依赖、构建 llama.cpp 并准备模型：
+
 ```bash
-./scripts/setup/install-llm.sh
+./scripts/setup/check-prereqs.sh
+source .venv/bin/activate
+llm setup
+
+curl -fL --retry 5 -C - \
+  -o ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
+mv ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf
+```
+
+下载约 2.6 GB。更小的 Qwen3.5-2B 下载方式见
+[`docs/models.zh-CN.md`](docs/models.zh-CN.md)。还需安装准备使用的
+Claude Code、Codex CLI 或 Hermes CLI；`llm doctor` 会检查它们是否存在。
+
+然后启动交互工具：
+
+```bash
 llm
 ```
 
-交互菜单可以安装/构建后端、启动已有模型，或为正在运行的模型选择 Agent。
+主菜单会分别显示当前活动模型和可达服务。Ollama 服务运行但未加载模型时显示
+为 `ready (idle)`，不会被误认为活动后端。菜单始终默认运行模型，第二项是
+浏览已安装模型，第三项是打开 Agent。
 
-本仓库还支持以下推理后端：
+菜单还包含停止活动模型和运行时诊断。如果 llama.cpp 已占用 8080 端口，
+`llm start` 会询问是否替换。
+同一时间只运行一个推理引擎；在 llama.cpp 和 Ollama 之间切换时会自动停止
+之前的引擎。
 
-| 后端 | 默认地址 | 模型格式 | 启动命令 |
-|---|---|---|---|
-| Ollama | `http://127.0.0.1:11434` | Ollama/GGUF | `llm start ollama` |
-| llama.cpp | `http://127.0.0.1:8080` | GGUF | `llm start llama-cpp` |
-| vLLM | `http://127.0.0.1:8000` | Hugging Face/AWQ/GPTQ | `llm start vllm` |
-| Strata | `http://127.0.0.1:8082` | Strata 模型包 | `llm start strata` |
-
-新版 llama.cpp、vLLM 和 Strata 原生支持 Anthropic Messages API。只有 Ollama
-需要 `scripts/ollama/` 中的兼容代理。
-
-便携硬盘用户：每台宿主机需先安装 Ollama（参见
-[`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md#前置条件)），
-然后执行一次 `./scripts/setup/install-portable-ollama-command.sh`，
-再使用 `portable-ollama serve` 和 `portable-ollama run <model>`。
-
-## Agent 集成
-
-### Cline
-
-连接 llama.cpp，直接管理 GGUF 文件和上下文：
-
-| 配置项 | 参数值 |
-|---|---|
-| API Provider | `OpenAI Compatible` |
-| Base URL | `http://127.0.0.1:8080/v1` |
-| API Key | `114514` |
-| Model ID / Context | `./scripts/llama-cpp/cline-server.sh` 启动时会打印 |
-
-也可以直接对接 Ollama（`API Provider: Ollama`，Base URL `http://127.0.0.1:11434`）。
-
-<img src="media/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
-
-完整说明：[`docs/cline.zh-CN.md`](docs/cline.zh-CN.md)
-
-### Claude Code
+典型双终端流程：
 
 ```bash
-llm start             # 终端 1
-claude-local          # 终端 2
-```
+# 终端 1
+source .venv/bin/activate
+llm start
 
-省略 `--backend` 时会自动检测 llama.cpp、vLLM、Strata 和 Ollama proxy：
-
-```bash
-./scripts/claude/claude-local.sh --check
-```
-
-完整说明：[`docs/claude-code.zh-CN.md`](docs/claude-code.zh-CN.md)
-
-### Codex
-
-```bash
+# 终端 2，可在任意项目目录中运行
+claude-local
+# 或
 codex-local
-```
-
-Codex 自定义 provider 使用 Responses API，启动器会自动完成配置。
-
-### Hermes
-
-```bash
+# 或
 hermes-local
 ```
 
-Hermes 通过自定义 OpenAI 兼容 provider 连接。
+`*-local` 命令会保留调用时所在目录，并自动使用正在运行的后端。
 
-### Copilot
+## 模型列表
 
-```bash
-./scripts/ollama/serve.sh
-ollama pull <model>
-```
-
-然后在 VS Code Copilot Chat 的模型选择器中即可看到本地模型。
-
-<img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
-
-完整说明：[`docs/copilot.zh-CN.md`](docs/copilot.zh-CN.md)
-
-## 仪表盘
-
-纯 Python 标准库实现，无任何外部依赖。
-
-### 控制面板
-
-完整服务与模型控制，访问 `http://localhost:8766`。
+CLI 支持任何兼容的 GGUF 模型。文档中列出的模型只是用于验证参考笔记本
+完整流程的示例；用户应根据自己的硬件和质量要求选择模型。
 
 ```bash
-python3 control_panel.py
+llm models
+llm models --sort name
+llm models --json
 ```
 
-<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+默认显示安装大小并按从小到大自动排列；`llm start` 的模型选择器也会显示大小。
 
-### 监控面板
-
-只读状态视图，访问 `http://localhost:8765`
-
-```bash
-python3 monitor.py
-```
-
-完整说明：[`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md)
-
-## 目录结构
+模型文件不得放在仓库中。默认目录：
 
 ```text
-~/LLM/                 # LLM_ROOT，可在 .env 中修改
-  models/              # llama.cpp GGUF 模型
-    strata/            # Strata 模型包
-  ollama/              # Ollama 状态与模型
-  llama.cpp/           # llama.cpp 源码与构建
-  huggingface/         # Hugging Face / vLLM 缓存
-  strata/              # Strata 应用状态
-  .venv/               # llm 必需的受管理 Python 虚拟环境
-  run/                 # 运行状态与日志
-
-~/Projects/local-llm-agent/  # 轻量 Git 仓库
+~/LLM/
+  models/        # 共享 GGUF
+  llama.cpp/     # 引擎源码和构建
+  ollama/        # Ollama 状态和模型链接
+  .venv/         # Python 环境
+  run/           # 日志和运行状态
 ```
 
-所有路径均可通过 `.env` 或环境变量覆盖。仓库仍保留模型文件的
-`.gitignore` 作为保护。完整说明见 [`docs/setup.zh-CN.md`](docs/setup.zh-CN.md)。
+可在 `.env` 中修改 `LLM_ROOT` 或单独路径，详见
+[`docs/backends.zh-CN.md`](docs/backends.zh-CN.md)。
 
-## 文档索引
+## 上下文
 
-| 文档 | 说明 |
+上下文窗口由正在运行的后端决定。Agent 启动器读取服务端实际值，不应再保存
+另一份硬编码值。如果 Hermes 存在与服务端冲突的上下文设置，`llm` 会拒绝
+启动并提示删除。
+
+llama.cpp 启动菜单会按模型提供上下文选项，也支持手动输入。更大的上下文会
+消耗更多显存或内存，详见 [`docs/context-memory.zh-CN.md`](docs/context-memory.zh-CN.md)。
+
+## 文档
+
+| 文档 | 内容 |
 |---|---|
-| [`docs/setup.zh-CN.md`](docs/setup.zh-CN.md) | 目录结构、环境变量、服务配置与安装流程 |
-| [`docs/cli.zh-CN.md`](docs/cli.zh-CN.md) | `llm` 命令参考 |
-| [`docs/control-panel.zh-CN.md`](docs/control-panel.zh-CN.md) | 控制面板与监控面板 — 使用说明与环境变量 |
-| [`docs/hardware-matching.zh-CN.md`](docs/hardware-matching.zh-CN.md) | 按硬件配置推荐模型 |
-| [`docs/portable-llm-launcher.zh-CN.md`](docs/portable-llm-launcher.zh-CN.md) | 便携式 LLM 启动器：本机/便携模式用法 |
-| [`docs/usage-llama-cpp.zh-CN.md`](docs/usage-llama-cpp.zh-CN.md) | llama.cpp CLI/服务端用法 |
-| [`docs/usage-ollama.zh-CN.md`](docs/usage-ollama.zh-CN.md) | Ollama 服务与 API 用法 |
-| [`docs/usage-vllm.zh-CN.md`](docs/usage-vllm.zh-CN.md) | vLLM 安装、启动与工具调用 |
-| [`docs/usage-strata.zh-CN.md`](docs/usage-strata.zh-CN.md) | Strata 模型计划与启动 |
-| [`docs/cline.zh-CN.md`](docs/cline.zh-CN.md) | Cline 集成与故障排查 |
-| [`docs/copilot.zh-CN.md`](docs/copilot.zh-CN.md) | Copilot Chat/CLI 连接 Ollama |
-| [`docs/claude-local.zh-CN.md`](docs/claude-local.zh-CN.md) | 旧版 Ollama 专用模型选择器 |
-| [`docs/claude-code.zh-CN.md`](docs/claude-code.zh-CN.md) | Claude Code 连接 llama.cpp、vLLM、Strata 或 Ollama |
-| [`docs/agents.zh-CN.md`](docs/agents.zh-CN.md) | Claude Code、Codex CLI、Hermes 兼容性 |
-| [`docs/claude-proxy.zh-CN.md`](docs/claude-proxy.zh-CN.md) | 本地 Anthropic proxy 原理 |
-| [`docs/context-memory.zh-CN.md`](docs/context-memory.zh-CN.md) | 上下文窗口、KV cache、持久化记忆 |
-| [`docs/models.zh-CN.md`](docs/models.zh-CN.md) | 各模型系列及适用场景 |
-| [`docs/maintenance.zh-CN.md`](docs/maintenance.zh-CN.md) | 模型的添加/删除/检查/更新 |
-| [`docs/tuning.zh-CN.md`](docs/tuning.zh-CN.md) | 参数调优与 Modelfile 工作流 |
+| [`docs/cli.zh-CN.md`](docs/cli.zh-CN.md) | `llm` 命令和交互流程 |
+| [`docs/agents.zh-CN.md`](docs/agents.zh-CN.md) | Claude Code、Codex CLI、Hermes |
+| [`docs/backends.zh-CN.md`](docs/backends.zh-CN.md) | llama.cpp、Ollama、存储和生命周期 |
+| [`docs/models.zh-CN.md`](docs/models.zh-CN.md) | 已验证模型和建议 |
+| [`docs/context-memory.zh-CN.md`](docs/context-memory.zh-CN.md) | 上下文窗口和 KV cache |
+| [`docs/troubleshooting.zh-CN.md`](docs/troubleshooting.zh-CN.md) | 常见问题和诊断 |
+
+在 CLI 展示稳定前，暂不保留截图和媒体文件。

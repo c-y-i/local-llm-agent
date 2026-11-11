@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import signal
 import shutil
 import subprocess
 import sys
@@ -30,12 +32,50 @@ AGENTS = {
     "hermes": "Hermes Agent",
 }
 
+LLAMA_PROFILES = (
+    (
+        "huihui-qwen3.5-2b-abliterated-f16",
+        {"context": 32768, "gpu_layers": 999},
+    ),
+    ("qwen3.5-2b", {"context": 131072, "gpu_layers": 999}),
+    ("qwen3.5-4b", {"context": 65536, "gpu_layers": 999}),
+    ("qwen3.5-9b", {"context": 32768, "gpu_layers": 24}),
+    ("gemma4-e4b", {"context": 32768, "gpu_layers": 30}),
+)
+
+LLAMA_CONTEXT_CHOICES = (
+    (
+        "huihui-qwen3.5-2b-abliterated-f16",
+        (16384, 32768, 65536, 131072, 262144),
+    ),
+    ("qwen3.5-2b", (32768, 65536, 131072, 262144)),
+    ("qwen3.5-4b", (32768, 65536, 98304, 131072)),
+    ("qwen3.5-9b", (16384, 32768, 49152, 65536)),
+    ("gemma4-e4b", (16384, 32768, 49152, 65536)),
+)
+
+LLAMA_MODEL_PRIORITY = (
+    "qwen3.5-4b",
+    "qwen3.5-2b",
+    "qwen3.5-9b",
+    "gemma4-e4b",
+)
+
+OLLAMA_CONTEXT_PROFILES = (
+    ("qwen3.5-2b-official", (16384, 32768, 65536, 131072, 262144), 65536),
+    ("qwen3.5-4b-official", (16384, 32768, 65536, 131072), 65536),
+    ("qwen3.5-abliterated:2b", (16384, 32768, 65536, 131072), 32768),
+    ("qwen3.5-abliterated:4b", (16384, 32768, 65536), 32768),
+    ("gemma4-e4b", (8192, 16384, 32768, 65536), 16384),
+    ("qwen3.5-9b", (8192, 16384, 32768, 65536), 16384),
+)
+
 
 def _run(args: list[str], env: dict[str, str] | None = None) -> int:
     command = [str(arg) for arg in args]
     print("+ " + " ".join(command), file=sys.stderr)
     try:
-        result = subprocess.run(command, cwd=REPO_ROOT, env=env)
+        result = subprocess.run(command, cwd=Path.cwd(), env=env)
     except KeyboardInterrupt:
         return 130
     except OSError as exc:
@@ -52,14 +92,33 @@ def _passthrough(args) -> list[str]:
 
 
 def _ensure_anthropic_proxy(env: dict[str, str]) -> None:
+    paths = ensure_directories()
+    pid_path = paths["run"] / "anthropic-proxy.pid"
+    backend_path = paths["run"] / "anthropic-proxy.backend"
+    desired_backend = env.get("LOCAL_OPENAI_BASE", "").rstrip("/")
+    healthy = False
     try:
         with urllib.request.urlopen("http://127.0.0.1:4000/health", timeout=1) as response:
-            if response.status == 200:
-                return
+            healthy = response.status == 200
     except Exception:
         pass
+    if healthy and backend_path.is_file():
+        current_backend = backend_path.read_text().strip()
+        if current_backend == desired_backend:
+            return
+        if pid_path.is_file():
+            try:
+                pid = int(pid_path.read_text().strip())
+                os.killpg(os.getpgid(pid), 15)
+                time.sleep(0.5)
+            except (OSError, ValueError):
+                pass
+        healthy = False
+    elif healthy:
+        raise RuntimeError(
+            "port 4000 is already used by an untracked proxy; stop it and retry"
+        )
 
-    paths = ensure_directories()
     log_path = paths["run"] / "anthropic-proxy.log"
     with log_path.open("ab") as log:
         process = subprocess.Popen(
@@ -70,7 +129,8 @@ def _ensure_anthropic_proxy(env: dict[str, str]) -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-    (paths["run"] / "anthropic-proxy.pid").write_text(f"{process.pid}\n")
+    pid_path.write_text(f"{process.pid}\n")
+    backend_path.write_text(desired_backend + "\n")
 
     for _ in range(20):
         try:
@@ -132,14 +192,46 @@ def _backend_status(env: dict[str, str]) -> dict[str, dict]:
     return result
 
 
+def _ollama_loaded_models(env: dict[str, str]) -> list[str]:
+    url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{url}/api/ps", timeout=1.5) as response:
+            body = json.loads(response.read())
+    except Exception:
+        return []
+    return [
+        str(item.get("name") or item.get("model"))
+        for item in body.get("models", [])
+        if isinstance(item, dict) and (item.get("name") or item.get("model"))
+    ]
+
+
+def _active_models(
+    env: dict[str, str], status: dict[str, dict] | None = None
+) -> dict[str, list[str]]:
+    status = status or _backend_status(env)
+    active = {}
+    for backend, entry in status.items():
+        if not entry["reachable"]:
+            continue
+        models = (
+            _ollama_loaded_models(env)
+            if backend == "ollama"
+            else entry["models"]
+        )
+        if models:
+            active[backend] = models
+    return active
+
+
 def _select_backend(env: dict[str, str], requested: str | None) -> str:
     if requested:
         return requested
-    status = _backend_status(env)
+    active = _active_models(env)
     for backend in ("llama-cpp", "vllm", "strata", "ollama"):
-        if status[backend]["reachable"]:
+        if backend in active:
             return backend
-    raise RuntimeError("no local backend is reachable")
+    raise RuntimeError("no local model is loaded or being served")
 
 
 def _backend_connection(env: dict[str, str], backend: str) -> tuple[str, str]:
@@ -157,6 +249,76 @@ def _backend_connection(env: dict[str, str], backend: str) -> tuple[str, str]:
         "local",
     )
     return base_url, token
+
+
+def _served_context_window(env: dict[str, str], backend: str) -> int | None:
+    base_url, _token = _backend_connection(env, backend)
+    if backend == "ollama":
+        try:
+            with urllib.request.urlopen(f"{base_url}/api/ps", timeout=2) as response:
+                body = json.loads(response.read())
+            contexts = [
+                int(item["context_length"])
+                for item in body.get("models", [])
+                if isinstance(item, dict)
+                and isinstance(item.get("context_length"), int)
+                and item["context_length"] > 0
+            ]
+            return max(contexts) if contexts else None
+        except Exception:
+            return None
+    if backend != "llama-cpp":
+        return None
+    try:
+        with urllib.request.urlopen(f"{base_url}/v1/models", timeout=2) as response:
+            body = json.loads(response.read())
+        context = body["data"][0]["meta"]["n_ctx"]
+        return int(context) if context else None
+    except Exception:
+        return None
+
+
+def _hermes_context_pins(config_path: Path) -> dict[str, int]:
+    try:
+        lines = config_path.read_text().splitlines()
+    except OSError:
+        return {}
+
+    in_model = False
+    pins = {}
+    for raw_line in lines:
+        line = raw_line.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if not line[0].isspace():
+            in_model = line.strip() == "model:"
+            continue
+        if not in_model:
+            continue
+        match = re.fullmatch(
+            r"\s+(context_length|ollama_num_ctx):\s*['\"]?(\d+)['\"]?\s*",
+            line,
+        )
+        if match:
+            pins[match.group(1)] = int(match.group(2))
+    return pins
+
+
+def _hermes_context_conflict(
+    env: dict[str, str], backend: str
+) -> tuple[str, int, int] | None:
+    if backend != "llama-cpp":
+        return None
+    live_context = _served_context_window(env, backend)
+    if live_context is None:
+        return None
+    hermes_home = Path(env.get("HERMES_HOME", get_paths()["hermes"]))
+    for key, pinned_context in _hermes_context_pins(
+        hermes_home / "config.yaml"
+    ).items():
+        if pinned_context != live_context:
+            return key, pinned_context, live_context
+    return None
 
 
 def _model_from_backend(env: dict[str, str], backend: str) -> str:
@@ -240,7 +402,8 @@ def _discover_models(
     backend: str, env: dict[str, str], paths: dict[str, Path]
 ) -> list[str]:
     if backend == "llama-cpp":
-        return sorted(item.stem for item in paths["models"].glob("*.gguf"))
+        models = [item.stem for item in paths["models"].glob("*.gguf")]
+        return sorted(models, key=_llama_model_sort_key)
     if backend == "vllm":
         return _hf_cached_models(paths)
     if backend == "strata":
@@ -271,6 +434,105 @@ def _discover_models(
         for line in result.stdout.splitlines()[1:]
         if line.strip() and not line.lower().startswith("name")
     ]
+
+
+def _directory_size(path: Path) -> int | None:
+    if not path.exists():
+        return None
+    if path.is_file():
+        return path.stat().st_size
+    seen = set()
+    total = 0
+    for item in path.rglob("*"):
+        try:
+            if not item.is_file():
+                continue
+            stat = item.stat()
+        except OSError:
+            continue
+        identity = (stat.st_dev, stat.st_ino)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        total += stat.st_size
+    return total
+
+
+def _ollama_model_sizes(env: dict[str, str]) -> dict[str, int]:
+    url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{url}/api/tags", timeout=2) as response:
+            body = json.loads(response.read())
+    except Exception:
+        return {}
+    sizes = {}
+    for item in body.get("models", []):
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name") or item.get("model")
+        size = item.get("size")
+        if name and isinstance(size, int) and size > 0:
+            sizes[str(name)] = size
+    return sizes
+
+
+def _model_sizes(
+    backend: str, models: list[str], env: dict[str, str], paths: dict[str, Path]
+) -> dict[str, int]:
+    sizes = {}
+    if backend == "llama-cpp":
+        for model in models:
+            path = paths["models"] / f"{model}.gguf"
+            if size := _directory_size(path):
+                sizes[model] = size
+    elif backend == "ollama":
+        sizes = _ollama_model_sizes(env)
+    elif backend == "vllm":
+        hub = paths["hf_home"] / "hub"
+        for model in models:
+            path = hub / f"models--{model.replace('/', '--')}"
+            if size := _directory_size(path):
+                sizes[model] = size
+    elif backend == "strata":
+        for model in models:
+            path = paths["strata_models"] / model
+            if not path.exists():
+                path = paths["strata_models"] / f"{model}.gguf"
+            if size := _directory_size(path):
+                sizes[model] = size
+    return sizes
+
+
+def _format_size(size: int | None) -> str:
+    if not size:
+        return "size unknown"
+    units = ("B", "KB", "MB", "GB", "TB")
+    value = float(size)
+    unit = units[0]
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            break
+        value /= 1024
+    return f"{value:.1f} {unit}"
+
+
+def _ordered_models(
+    models: list[str], sizes: dict[str, int], sort: str
+) -> list[str]:
+    if sort == "size":
+        return sorted(
+            models,
+            key=lambda model: (sizes.get(model, -1), model.lower()),
+        )
+    return sorted(models)
+
+
+def _llama_model_sort_key(model: str) -> tuple[int, str]:
+    normalized = model.lower()
+    for index, marker in enumerate(LLAMA_MODEL_PRIORITY):
+        if marker in normalized:
+            return index, normalized
+    return len(LLAMA_MODEL_PRIORITY), normalized
 
 
 def _choose_backend(env: dict[str, str], requested: str | None) -> str:
@@ -304,10 +566,21 @@ def _choose_backend(env: dict[str, str], requested: str | None) -> str:
     return selected
 
 
-def _warm_ollama_model(env: dict[str, str], model: str) -> int:
+def _warm_ollama_model(
+    env: dict[str, str], model: str, context: int | None = None
+) -> int:
     base_url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    options = {"num_predict": 0}
+    if context:
+        options["num_ctx"] = context
     payload = json.dumps(
-        {"model": model, "prompt": ".", "stream": False, "keep_alive": "10m"}
+        {
+            "model": model,
+            "prompt": ".",
+            "stream": False,
+            "keep_alive": env.get("OLLAMA_KEEP_ALIVE", "30m"),
+            "options": options,
+        }
     ).encode()
     request = urllib.request.Request(
         f"{base_url}/api/generate",
@@ -321,8 +594,285 @@ def _warm_ollama_model(env: dict[str, str], model: str) -> int:
     except Exception as exc:
         print(f"error: could not load {model}: {exc}", file=sys.stderr)
         return 2
-    print(f"Loaded {model}")
+    suffix = f" ({context // 1024}K context)" if context else ""
+    print(f"Loaded {model}{suffix}")
     return 0
+
+
+def _ollama_context_profile(model: str) -> tuple[tuple[int, ...], int]:
+    normalized = model.lower()
+    for marker, choices, default in OLLAMA_CONTEXT_PROFILES:
+        if marker in normalized:
+            return choices, default
+    return (16384, 32768, 65536), 16384
+
+
+def _choose_ollama_context(model: str) -> int:
+    choices, default = _ollama_context_profile(model)
+    options = [
+        (str(tokens), f"{tokens // 1024}K tokens") for tokens in choices
+    ]
+    selected = _prompt_choice(
+        f"Choose a context window for {model}",
+        options,
+        default=choices.index(default) + 1,
+        allow_manual=True,
+    )
+    if selected is None:
+        raise RuntimeError("cancelled")
+    context = int(selected)
+    if context < 2048:
+        raise RuntimeError("context window must be at least 2048 tokens")
+    return context
+
+
+def _start_managed_ollama(env: dict[str, str], paths: dict[str, Path]) -> bool:
+    if _backend_status(env)["llama-cpp"]["reachable"]:
+        stopped, message = _stop_tracked_llama(paths)
+        print(message)
+        if not stopped:
+            print(
+                "Stop the foreground llama.cpp server before starting Ollama.",
+                file=sys.stderr,
+            )
+            return False
+    log_path = paths["run"] / "ollama.log"
+    pid_path = paths["run"] / "ollama.pid"
+    process_env = env.copy()
+    process_env["OLLAMA_MODELS"] = str(paths["ollama_models"])
+    process_env.setdefault("OLLAMA_HOST", "127.0.0.1:11434")
+    process_env.setdefault("OLLAMA_NO_CLOUD", "1")
+    process_env.setdefault("OLLAMA_NUM_PARALLEL", "1")
+    process_env.setdefault("OLLAMA_KEEP_ALIVE", "30m")
+    print("Starting managed Ollama...", flush=True)
+    with log_path.open("ab") as log:
+        process = subprocess.Popen(
+            ["ollama", "serve"],
+            cwd=Path.cwd(),
+            env=process_env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    pid_path.write_text(f"{process.pid}\n")
+
+    url = process_env["OLLAMA_HOST"]
+    if not url.startswith(("http://", "https://")):
+        url = f"http://{url}"
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            print(f"error: Ollama exited; see {log_path}", file=sys.stderr)
+            return False
+        try:
+            with urllib.request.urlopen(f"{url}/api/version", timeout=0.5):
+                return True
+        except Exception:
+            time.sleep(0.25)
+    print(f"error: Ollama did not become ready; see {log_path}", file=sys.stderr)
+    return False
+
+
+def _background_llama_model(
+    env: dict[str, str], paths: dict[str, Path], model: str
+) -> bool:
+    if _backend_status(env)["ollama"]["reachable"]:
+        stopped, message = _stop_managed_ollama(paths)
+        print(message)
+        if not stopped:
+            return False
+    profile = _llama_profile(model)
+    env = env.copy()
+    env["N_CTX"] = str(int(env.get("N_CTX", profile["context"])))
+    env["N_GPU_LAYERS"] = str(
+        int(env.get("N_GPU_LAYERS", profile["gpu_layers"]))
+    )
+    env.setdefault("FLASH_ATTN", "auto")
+    env.setdefault("KV_CACHE_TYPE", "q8_0")
+
+    log_path = paths["run"] / "llama-server.log"
+    pid_path = paths["run"] / "llama-server.pid"
+    command = [REPO_ROOT / "scripts/llama-cpp/claude-server.sh", model]
+    print(
+        f"Starting {model} on llama.cpp "
+        f"({int(env['N_CTX']) // 1024}K context)...",
+        flush=True,
+    )
+    with log_path.open("ab") as log:
+        process = subprocess.Popen(
+            [str(item) for item in command],
+            cwd=Path.cwd(),
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    pid_path.write_text(f"{process.pid}\n")
+
+    url = env.get("LLAMA_CPP_BASE_URL", "http://127.0.0.1:8080").rstrip("/")
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            print(f"error: llama.cpp exited; see {log_path}", file=sys.stderr)
+            return False
+        try:
+            with urllib.request.urlopen(f"{url}/health", timeout=0.5) as response:
+                if response.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.25)
+    print(f"error: llama.cpp did not become ready; see {log_path}", file=sys.stderr)
+    return False
+
+
+def _ensure_agent_model(env: dict[str, str], paths: dict[str, Path]) -> bool:
+    llama_models = _discover_models("llama-cpp", env, paths)
+    if llama_models:
+        return _background_llama_model(env, paths, llama_models[0])
+
+    ollama_models = _discover_models("ollama", env, paths)
+    if ollama_models and _backend_status(env)["ollama"]["reachable"]:
+        return _warm_ollama_model(env, ollama_models[0]) == 0
+    return False
+
+
+def _llama_server_pids() -> list[int]:
+    pids = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != os.getuid():
+                continue
+            args = (entry / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        args = [arg.decode(errors="replace") for arg in args if arg]
+        if args and Path(args[0]).name == "llama-server":
+            pids.append(int(entry.name))
+    return pids
+
+
+def _stop_tracked_llama(paths: dict[str, Path]) -> tuple[bool, str]:
+    pid_path = paths["run"] / "llama-server.pid"
+    pids = set(_llama_server_pids())
+    try:
+        pid = int(pid_path.read_text().strip())
+        command = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ")
+        if b"llama-server" in command:
+            pids.add(pid)
+    except (OSError, ValueError):
+        pid = None
+    if not pids:
+        pid_path.unlink(missing_ok=True)
+        return (
+            False,
+            "no llama.cpp server process is running",
+        )
+
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError as exc:
+            return False, f"could not stop llama.cpp PID {pid}: {exc}"
+    for _ in range(40):
+        if not _llama_server_pids():
+            pid_path.unlink(missing_ok=True)
+            return True, "stopped llama.cpp"
+        time.sleep(0.25)
+    return False, "llama.cpp did not stop cleanly"
+
+
+def _ollama_serve_pids() -> list[int]:
+    pids = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != os.getuid():
+                continue
+            args = (entry / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        args = [arg.decode(errors="replace") for arg in args if arg]
+        if len(args) >= 2 and Path(args[0]).name == "ollama" and args[1] == "serve":
+            pids.append(int(entry.name))
+    return pids
+
+
+def _stop_managed_ollama(paths: dict[str, Path]) -> tuple[bool, str]:
+    pids = _ollama_serve_pids()
+    if not pids:
+        (paths["run"] / "ollama.pid").unlink(missing_ok=True)
+        return True, "Ollama is not running"
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError as exc:
+            return False, f"could not stop Ollama PID {pid}: {exc}"
+    for _ in range(40):
+        if not _ollama_serve_pids():
+            (paths["run"] / "ollama.pid").unlink(missing_ok=True)
+            return True, "stopped Ollama"
+        time.sleep(0.25)
+    return False, "Ollama did not stop cleanly"
+
+
+def _llama_profile(model: str) -> dict[str, int]:
+    normalized = model.lower()
+    for marker, profile in LLAMA_PROFILES:
+        if marker in normalized:
+            return profile
+    return {"context": 16384, "gpu_layers": 999}
+
+
+def _context_choices(model: str) -> tuple[int, ...]:
+    normalized = model.lower()
+    for marker, choices in LLAMA_CONTEXT_CHOICES:
+        if marker in normalized:
+            return choices
+    return (16384, 32768, 65536, 131072)
+
+
+def _choose_context_window(model: str, default: int) -> int:
+    choices = _context_choices(model)
+    if default not in choices:
+        choices = tuple(sorted((*choices, default)))
+    options = [
+        (str(tokens), f"{tokens // 1024}K tokens")
+        for tokens in choices
+    ]
+    default_index = choices.index(default) + 1
+    selected = _prompt_choice(
+        f"Choose a context window for {model}",
+        options,
+        default=default_index,
+        allow_manual=True,
+    )
+    if selected is None:
+        raise RuntimeError("cancelled")
+    try:
+        context = int(selected)
+    except ValueError as exc:
+        raise RuntimeError(f"invalid context window: {selected}") from exc
+    if context < 2048:
+        raise RuntimeError("context window must be at least 2048 tokens")
+    return context
+
+
+def _resolve_llama_context(
+    model: str, requested: int | None, env: dict[str, str]
+) -> int:
+    if requested is not None:
+        return requested
+    if configured := env.get("N_CTX"):
+        return int(configured)
+    profile = _llama_profile(model)
+    default = profile["context"]
+    if not _is_interactive():
+        return default
+    return _choose_context_window(model, default)
 
 
 def _choose_model(
@@ -335,9 +885,25 @@ def _choose_model(
         return requested
     models = _discover_models(backend, env, paths)
     if models:
-        choices = [(model, model) for model in models]
+        sizes = _model_sizes(backend, models, env, paths)
+        models = _ordered_models(models, sizes, "size")
+        choices = [
+            (model, f"{model}  ({_format_size(sizes.get(model))})")
+            for model in models
+        ]
+        default = next(
+            (
+                index
+                for index, model in enumerate(models, 1)
+                if "qwen3.5-4b" in model.lower()
+            ),
+            1,
+        )
         selected = _prompt_choice(
-            f"Choose a model for {backend}", choices, allow_manual=True
+            f"Choose a model for {backend}",
+            choices,
+            default=default,
+            allow_manual=True,
         )
         if selected is None:
             raise RuntimeError("cancelled")
@@ -362,11 +928,7 @@ def _choose_model(
 
 
 def _running_backends(env: dict[str, str]) -> list[str]:
-    return [
-        backend
-        for backend, status in _backend_status(env).items()
-        if status["reachable"]
-    ]
+    return list(_active_models(env))
 
 
 def _codex_command(
@@ -524,8 +1086,9 @@ def cmd_models(args: argparse.Namespace) -> int:
         if not models:
             print("  no installed models")
             continue
-        for model in models:
-            print(f"  {model}")
+        sizes = _model_sizes(backend, models, env, paths)
+        for model in _ordered_models(models, sizes, getattr(args, "sort", "name")):
+            print(f"  {model:48s} {_format_size(sizes.get(model))}")
     return 0
 
 
@@ -535,11 +1098,70 @@ def cmd_status(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(status, indent=2))
         return 0
+    active = _active_models(env, status)
     for backend, entry in status.items():
-        state = "online" if entry["reachable"] else "offline"
-        models = ", ".join(entry["models"]) if entry["models"] else "-"
-        print(f"{state:7s} {backend:10s} {entry['url']}  {models}")
+        if not entry["reachable"]:
+            state = "offline"
+        elif backend in active:
+            state = "active"
+        else:
+            state = "ready"
+        loaded = ", ".join(active.get(backend, [])) or "-"
+        print(
+            f"{state:7s} {backend:10s} {entry['url']}  "
+            f"loaded={loaded}  installed={len(entry['models'])}"
+        )
     return 0
+
+
+def cmd_stop(_args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    status = _backend_status(env)
+    if status["llama-cpp"]["reachable"]:
+        stopped, message = _stop_tracked_llama(paths)
+        print(message)
+        return 0 if stopped else 2
+    if status["ollama"]["reachable"]:
+        stopped, message = _stop_managed_ollama(paths)
+        print(message)
+        return 0 if stopped else 2
+    print("No active model.")
+    return 0
+
+
+def cmd_logs(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    backend = args.backend
+    if not backend:
+        active = _active_models(env)
+        if "llama-cpp" in active:
+            backend = "llama-cpp"
+        elif "ollama" in active:
+            backend = "ollama"
+        elif _backend_status(env)["ollama"]["reachable"]:
+            backend = "ollama"
+        else:
+            print("No active backend. Use --backend to choose a log.", file=sys.stderr)
+            return 2
+    path = paths["run"] / (
+        "ollama.log" if backend == "ollama" else "llama-server.log"
+    )
+    if not path.is_file():
+        print(f"Log file not found: {path}", file=sys.stderr)
+        if backend == "ollama":
+            print(
+                "Restart Ollama with: "
+                f"{REPO_ROOT}/scripts/ollama/restart-managed.sh",
+                file=sys.stderr,
+            )
+        return 2
+    command = ["tail", "-n", str(args.lines)]
+    if args.follow:
+        command.append("-f")
+    command.append(str(path))
+    return _run(command)
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -564,16 +1186,114 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    context = args.context
+    gpu_layers = args.gpu_layers
+    if backend == "llama-cpp":
+        profile = _llama_profile(model or "")
+        if context is None:
+            try:
+                context = _resolve_llama_context(model or "", None, env)
+            except RuntimeError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+        if gpu_layers is None:
+            gpu_layers = int(env.get("N_GPU_LAYERS", profile["gpu_layers"]))
+        env["N_CTX"] = str(context)
+        env["N_GPU_LAYERS"] = str(gpu_layers)
+        env.setdefault("FLASH_ATTN", "auto")
+        env.setdefault("KV_CACHE_TYPE", "q8_0")
+        if (
+            "huihui-qwen3.5-2b-abliterated-f16" in (model or "").lower()
+            and context > 131072
+        ):
+            env.setdefault("KV_OFFLOAD", "0")
+
+    if backend == "llama-cpp" and not args.port:
+        active = _active_models(env)
+        if _backend_status(env)["ollama"]["reachable"]:
+            stopped, message = _stop_managed_ollama(paths)
+            print(message)
+            if not stopped:
+                return 2
+            active = _active_models(env)
+        if "llama-cpp" in active:
+            running_models = active["llama-cpp"]
+            running_context = _served_context_window(env, backend)
+            if model in running_models and running_context == context:
+                print(
+                    f"{model} is already running on llama.cpp "
+                    f"with {context // 1024}K context."
+                )
+                return 0
+            if not _is_interactive():
+                print(
+                    "error: llama.cpp already has a model on port 8080; "
+                    "run `llm stop` first",
+                    file=sys.stderr,
+                )
+                return 2
+            current = ", ".join(running_models)
+            current_context = (
+                f"{running_context // 1024}K" if running_context else "unknown"
+            )
+            choice = _prompt_choice(
+                f"llama.cpp is running {current} ({current_context})",
+                [
+                    ("replace", f"Stop it and start {model} ({context // 1024}K)"),
+                    ("cancel", "Keep the current model"),
+                ],
+            )
+            if choice != "replace":
+                return 0
+            stopped, message = _stop_tracked_llama(paths)
+            print(message)
+            if not stopped:
+                return 2
+
     if args.port:
         env[f"{backend.upper().replace('-', '_')}_PORT"] = str(args.port)
-    if args.context:
-        env["N_CTX"] = str(args.context)
+
+    if (
+        backend == "ollama"
+        and _backend_status(env)["llama-cpp"]["reachable"]
+    ):
+        stopped, message = _stop_tracked_llama(paths)
+        print(message)
+        if not stopped:
+            return 2
+
+    if backend == "ollama" and not _backend_status(env)["ollama"]["reachable"]:
+        if not _start_managed_ollama(env, paths):
+            return 2
 
     if backend == "ollama" and _backend_status(env)["ollama"]["reachable"]:
         selected = _choose_model(backend, env, paths, args.model)
-        return _warm_ollama_model(env, selected)
+        selected_context = args.context
+        if selected_context is None and env.get("OLLAMA_NUM_CTX"):
+            selected_context = int(env["OLLAMA_NUM_CTX"])
+        if selected_context is None and _is_interactive():
+            try:
+                selected_context = _choose_ollama_context(selected)
+            except RuntimeError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+        result = _warm_ollama_model(env, selected, selected_context)
+        if result != 0 or not _is_interactive():
+            return result
+        log_path = paths["run"] / "ollama.log"
+        if log_path.is_file():
+            print(
+                f"Following Ollama logs from {log_path} "
+                "(Ctrl+C to return; model stays loaded)",
+                flush=True,
+            )
+            return _run(["tail", "-n", "20", "-f", str(log_path)])
+        return result
 
     print(f"Starting {backend}" + (f" with {model}" if model else ""))
+    if backend == "llama-cpp":
+        print(f"  Context    : {context}")
+        print(f"  GPU layers : {gpu_layers} (remaining layers use CPU/RAM)")
     if backend == "llama-cpp":
         script = REPO_ROOT / "scripts/llama-cpp/claude-server.sh"
         command = [script, model]
@@ -597,16 +1317,30 @@ def cmd_start(args: argparse.Namespace) -> int:
 def _launch_claude(
     env: dict[str, str], backend: str | None, model: str | None, extra: list[str]
 ) -> int:
-    if backend in (None, "ollama"):
+    use_proxy = backend in (None, "ollama", "llama-cpp")
+    if use_proxy:
+        if (
+            backend == "llama-cpp"
+            and not env.get("CLAUDE_CODE_MAX_CONTEXT_TOKENS")
+            and (context_window := _served_context_window(env, backend))
+        ):
+            env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = str(context_window)
         proxy_env = env.copy()
-        proxy_env["OLLAMA_BASE"] = env.get(
-            "OLLAMA_BASE_URL", "http://127.0.0.1:11434"
-        ).rstrip("/")
+        if backend == "llama-cpp":
+            proxy_env["LOCAL_OPENAI_BASE"] = env.get(
+                "LLAMA_CPP_BASE_URL", "http://127.0.0.1:8080"
+            ).rstrip("/")
+        elif backend == "ollama":
+            proxy_env["LOCAL_OPENAI_BASE"] = env.get(
+                "OLLAMA_BASE_URL", "http://127.0.0.1:11434"
+            ).rstrip("/")
         try:
             _ensure_anthropic_proxy(proxy_env)
         except RuntimeError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
+        if backend is not None:
+            backend = "proxy"
     command = [REPO_ROOT / "scripts/claude/claude-local.sh"]
     if backend:
         command += ["--backend", backend]
@@ -665,6 +1399,18 @@ def _launch_hermes(
         print(f"error: {exc}", file=sys.stderr)
         return 2
     hermes_env = hermes_environment(env, backend, base_url, token)
+    if conflict := _hermes_context_conflict(hermes_env, backend):
+        key, pinned_context, live_context = conflict
+        print(
+            f"error: Hermes model.{key} "
+            f"({pinned_context:,}) conflicts with the live {backend} window "
+            f"({live_context:,}).\n"
+            "Hermes would use the stale pin. Remove the duplicate setting with:\n"
+            f"  HERMES_HOME={hermes_env['HERMES_HOME']} "
+            f"hermes config unset model.{key}",
+            file=sys.stderr,
+        )
+        return 2
     command = _hermes_command(backend, base_url, model, extra, token)
     return _run(command, hermes_env)
 
@@ -677,11 +1423,22 @@ def cmd_hermes(args: argparse.Namespace) -> int:
 
 def cmd_agent(args: argparse.Namespace) -> int:
     env = _configured_env()
-    running = _running_backends(env)
-    if not running:
-        print("No local model server is running.")
-        print("Start one first with: llm start")
-        return 2
+    status = _backend_status(env)
+    active = _active_models(env, status)
+    if not active:
+        paths = get_paths()
+        if not _ensure_agent_model(env, paths):
+            print(
+                "error: no installed model could be started; run `llm doctor`",
+                file=sys.stderr,
+            )
+            return 2
+        status = _backend_status(env)
+        active = _active_models(env, status)
+        if not active:
+            print("error: model started but no backend became active", file=sys.stderr)
+            return 2
+    running = list(active)
 
     try:
         backend = args.backend
@@ -698,19 +1455,18 @@ def cmd_agent(args: argparse.Namespace) -> int:
 
         model = args.model
         if not model:
-            status = _backend_status(env)[backend]
-            models = status["models"]
+            models = active.get(backend, [])
             if len(models) == 1:
                 model = models[0]
             elif models:
                 model = _prompt_choice(
-                    f"Choose a model served by {backend}",
+                    f"Choose a loaded model served by {backend}",
                     [(name, name) for name in models],
                 )
                 if model is None:
                     return 2
             else:
-                print(f"{backend} did not report a model ID.", file=sys.stderr)
+                print(f"{backend} has no loaded model.", file=sys.stderr)
                 return 2
 
         agent = args.agent
@@ -727,7 +1483,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    print(f"Launching {AGENTS[agent]} with {backend}/{model}")
+    print(f"Launching {AGENTS[agent]} with {backend}/{model}", flush=True)
     if agent == "claude":
         return _launch_claude(env, backend, model, _passthrough(args.agent_args))
     if agent == "codex":
@@ -827,57 +1583,88 @@ def cmd_menu(_args: argparse.Namespace) -> int:
         print("Run `llm --help` for non-interactive commands.")
         return 2
 
-    env = _configured_env()
-    running = _running_backends(env)
-    print("\nLocal LLM")
-    if running:
-        print("Running: " + ", ".join(running))
-    else:
-        print("Running: no model server")
-    choice = _prompt_choice(
-        "What do you want to do?",
-        [
-            ("start", "Start a model"),
-            ("agent", "Launch an agent"),
-            ("setup", "Install or build a backend"),
-            ("status", "Show backend status"),
-            ("models", "List installed models"),
-            ("doctor", "Check the installation"),
-            ("paths", "Show storage paths"),
-            ("quit", "Quit"),
-        ],
-        default=1,
-    )
-    if choice in (None, "quit"):
-        return 0
-    if choice == "start":
-        return cmd_start(
-            SimpleNamespace(
-                backend=None,
-                model=None,
-                port=None,
-                context=None,
-                family="qwen",
+    actions = [
+        ("start", "Run a model"),
+        ("models", "Browse installed models"),
+        ("agent", "Open a coding agent"),
+        ("stop", "Stop the active model"),
+        ("status", "Show runtime and backend status"),
+        ("logs", "View active backend logs"),
+        ("setup", "Manage backends and installations"),
+        ("doctor", "Run diagnostics"),
+        ("paths", "Show storage locations"),
+        ("quit", "Quit"),
+    ]
+    while True:
+        env = _configured_env()
+        status = _backend_status(env)
+        active = _active_models(env, status)
+        print("\nLocal LLM")
+        if active:
+            for backend, models in active.items():
+                context = _served_context_window(env, backend)
+                context_label = f" · {context // 1024}K context" if context else ""
+                print(
+                    f"Active model : {', '.join(models)} "
+                    f"[{backend}{context_label}]"
+                )
+        else:
+            print("Active model : none")
+        services = []
+        for backend, entry in status.items():
+            if not entry["reachable"]:
+                continue
+            if backend in active:
+                services.append(f"{backend} active")
+            elif backend == "ollama":
+                services.append("ollama ready (idle)")
+            else:
+                services.append(f"{backend} ready")
+        print("Services     : " + (", ".join(services) if services else "none"))
+        choice = _prompt_choice("Choose an action", actions, default=1)
+        if choice in (None, "quit"):
+            return 0
+        if choice == "start":
+            result = cmd_start(
+                SimpleNamespace(
+                    backend=None,
+                    model=None,
+                    port=None,
+                    context=None,
+                    gpu_layers=None,
+                    family="qwen",
+                )
             )
-        )
-    if choice == "agent":
-        return cmd_agent(
-            SimpleNamespace(
-                agent=None,
-                backend=None,
-                model=None,
-                agent_args=[],
+        elif choice == "agent":
+            result = cmd_agent(
+                SimpleNamespace(
+                    agent=None,
+                    backend=None,
+                    model=None,
+                    agent_args=[],
+                )
             )
-        )
-    if choice == "setup":
-        return cmd_setup(SimpleNamespace())
-    if choice == "status":
-        return cmd_status(SimpleNamespace(json=False))
-    if choice == "models":
-        return cmd_models(SimpleNamespace(json=False, backend=None))
-    if choice == "doctor":
-        return cmd_doctor(SimpleNamespace())
-    return cmd_paths(SimpleNamespace(json=False))
+        elif choice == "stop":
+            result = cmd_stop(SimpleNamespace())
+        elif choice == "setup":
+            result = cmd_setup(SimpleNamespace())
+        elif choice == "status":
+            result = cmd_status(SimpleNamespace(json=False))
+        elif choice == "logs":
+            result = cmd_logs(
+                SimpleNamespace(backend=None, lines=80, follow=False)
+            )
+        elif choice == "models":
+            result = cmd_models(
+                SimpleNamespace(json=False, backend=None, sort="size")
+            )
+        elif choice == "doctor":
+            result = cmd_doctor(SimpleNamespace())
+        else:
+            result = cmd_paths(SimpleNamespace(json=False))
+        if result != 0:
+            return result
+        print()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -910,6 +1697,12 @@ def build_parser() -> argparse.ArgumentParser:
     models = sub.add_parser("models", help="list installed models")
     models.add_argument("--json", action="store_true")
     models.add_argument(
+        "--sort",
+        choices=("name", "size"),
+        default="size",
+        help="sort by installed size (default) or model name",
+    )
+    models.add_argument(
         "--backend", choices=("llama-cpp", "vllm", "strata", "ollama")
     )
     models.set_defaults(func=cmd_models)
@@ -917,6 +1710,17 @@ def build_parser() -> argparse.ArgumentParser:
     status = sub.add_parser("status", help="probe compatible backends")
     status.add_argument("--json", action="store_true")
     status.set_defaults(func=cmd_status)
+
+    stop = sub.add_parser("stop", help="stop the tracked llama.cpp model")
+    stop.set_defaults(func=cmd_stop)
+
+    logs = sub.add_parser("logs", help="view backend logs")
+    logs.add_argument(
+        "--backend", choices=("llama-cpp", "ollama")
+    )
+    logs.add_argument("--lines", type=int, default=80)
+    logs.add_argument("-f", "--follow", action="store_true")
+    logs.set_defaults(func=cmd_logs)
 
     start = sub.add_parser(
         "start",
@@ -928,7 +1732,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start.add_argument("model", nargs="?")
     start.add_argument("--port", type=int)
-    start.add_argument("--context", type=int, help="llama.cpp context size")
+    start.add_argument(
+        "--context", type=int, help="llama.cpp or Ollama context size"
+    )
+    start.add_argument(
+        "--gpu-layers",
+        type=int,
+        help="llama.cpp layers on the GPU; leave the rest for CPU/RAM",
+    )
     start.add_argument("--family", default="qwen", help="Strata model family")
     start.set_defaults(func=cmd_start)
 

@@ -7,7 +7,7 @@ set -euo pipefail
 # Ollama still uses the compatibility proxy in scripts/ollama/.
 #
 # Usage:
-#   claude-local.sh [--backend llama-cpp|vllm|strata|ollama]
+#   claude-local.sh [--backend llama-cpp|vllm|strata|ollama|proxy]
 #                   [--model MODEL] [--check] [claude args...]
 #
 # If --backend is omitted, the first reachable backend is selected in this
@@ -95,7 +95,7 @@ backend_url() {
     llama-cpp) printf '%s' "${LLAMA_CPP_BASE_URL%/}" ;;
     vllm) printf '%s' "${VLLM_BASE_URL%/}" ;;
     strata) printf '%s' "${STRATA_BASE_URL%/}" ;;
-    ollama) printf '%s' "${OLLAMA_PROXY_BASE_URL%/}" ;;
+    ollama|proxy) printf '%s' "${OLLAMA_PROXY_BASE_URL%/}" ;;
     *) return 1 ;;
   esac
 }
@@ -106,6 +106,7 @@ backend_token() {
     vllm) printf '%s' "${VLLM_API_KEY:-local}" ;;
     strata) printf '%s' "${STRATA_API_KEY:-local}" ;;
     ollama) printf '%s' "${OLLAMA_PROXY_API_KEY:-local}" ;;
+    proxy) printf '%s' "${OLLAMA_PROXY_API_KEY:-local}" ;;
     *) return 1 ;;
   esac
 }
@@ -114,7 +115,7 @@ backend_reachable() {
   local name="$1"
   local url
   url="$(backend_url "$name")" || return 1
-  if [[ "$name" == "ollama" ]]; then
+  if [[ "$name" == "ollama" || "$name" == "proxy" ]]; then
     curl -fsS --max-time 2 "${url}/health" >/dev/null 2>&1
   else
     curl -fsS --max-time 2 "${url}/v1/models" >/dev/null 2>&1
@@ -140,8 +141,8 @@ fi
 [[ -n "$backend" ]] || die "no local backend is reachable; start llama.cpp, vLLM, Strata, or the Ollama proxy first"
 
 case "$backend" in
-  llama-cpp|vllm|strata|ollama) ;;
-  *) die "unsupported backend '$backend' (expected llama-cpp, vllm, strata, or ollama)" ;;
+  llama-cpp|vllm|strata|ollama|proxy) ;;
+  *) die "unsupported backend '$backend' (expected llama-cpp, vllm, strata, ollama, or proxy)" ;;
 esac
 
 base_url="$(backend_url "$backend")"

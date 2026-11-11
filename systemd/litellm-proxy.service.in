@@ -1,6 +1,6 @@
 [Unit]
 Description=Claude Code Anthropic proxy for Ollama
-Documentation=file:@LOCAL_LLM_AGENT_ROOT@/docs/claude-code.md
+Documentation=file:@LOCAL_LLM_AGENT_ROOT@/docs/agents.md
 After=network.target
 
 [Service]

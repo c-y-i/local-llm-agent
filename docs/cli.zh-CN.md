@@ -2,35 +2,7 @@
 
 [English](cli.md) | 简体中文
 
-`llm` 是仓库的统一命令入口，用于查看路径、诊断环境、安装引擎、列出模型、
-启动服务以及运行 Agent。
-
-## 日常使用
-
-```bash
-llm
-```
-
-交互菜单将概念分为：
-
-- **模型/后端**：选择要启动的引擎和已有模型
-- **Agent**：模型运行后选择 Claude Code、Codex 或 Hermes
-- **运行时**：状态、路径和安装检查
-
-交互选择后端和已有模型：
-
-```bash
-llm setup
-llm start
-```
-
-在另一个终端为正在运行的模型选择 Agent：
-
-```bash
-llm agent
-```
-
-启动器会自动填入后端、模型 ID、endpoint 和协议。脚本仍可使用显式参数。
+`llm` 是模型存储、llama.cpp、Ollama、运行状态和 Agent 启动的控制工具。
 
 ## 安装
 
@@ -40,9 +12,102 @@ source .venv/bin/activate
 llm --version
 ```
 
-每个新 shell 都必须先激活受管理的虚拟环境。
+`llm` 需要受管理的虚拟环境。安装后的 `claude-local`、`codex-local` 和
+`hermes-local` 会自动激活它。
 
-安装器还会创建直接启动本地 Agent 的命令：
+## 主菜单
+
+```bash
+llm
+```
+
+标题会分别显示已加载模型和可达服务。Ollama 服务运行但未加载模型时显示为
+`ready (idle)`。
+
+操作顺序固定为：
+
+1. 运行模型
+2. 浏览已安装模型
+3. 打开编码 Agent
+4. 停止活动模型
+5. 显示运行时和后端状态
+6. 查看活动后端日志
+7. 管理后端和安装
+8. 运行诊断
+9. 显示存储位置
+10. 退出
+
+## 运行模型
+
+```bash
+llm start
+llm start llama-cpp qwen3.5-4b-official-Q4_K_M
+llm start llama-cpp qwen3.5-4b-official-Q4_K_M --context 65536
+llm start llama-cpp qwen3.5-4b-official-Q4_K_M --gpu-layers 24
+```
+
+交互式 llama.cpp 启动会显示上下文窗口选择。模型会显示安装大小并自动按
+从小到大排序；存在 Qwen3.5-4B 时会标记为推荐默认项。
+
+Ollama：
+
+```bash
+llm start ollama qwen3.5-4b-official:latest
+```
+
+Ollama 以守护进程方式运行。在交互终端中，`llm start ollama` 加载模型后会在
+选择上下文后，在前台持续显示守护进程日志；按 `Ctrl+C` 返回，模型仍保持加载。
+Agent 需要另开终端使用 `claude-local`、`codex-local` 或 `hermes-local` 启动。
+
+也可跳过选择器：
+
+```bash
+llm start ollama qwen3.5-2b-official:latest --context 131072
+OLLAMA_NUM_CTX=131072 llm start ollama
+```
+
+如果 Ollama 尚未运行，`llm start ollama` 会把它作为后台守护进程启动，日志写入
+`$LLM_ROOT/run/ollama.log`。
+
+如果 llama.cpp 已在 8080 端口运行模型，`llm start` 会询问是否替换。也可以
+直接停止后台服务：
+
+```bash
+llm stop
+```
+
+同一时间只允许一个推理引擎运行。启动 llama.cpp 会先停止 Ollama 守护进程；
+启动 Ollama 会先停止 llama.cpp。直接启动 Agent 时的自动后端选择也遵守此规则。
+
+## 模型列表
+
+```bash
+llm models
+llm models --backend llama-cpp
+llm models --sort name
+llm models --json
+```
+
+默认按安装大小从小到大自动排序；`--sort name` 改为按名称排序。
+
+## 状态与诊断
+
+```bash
+llm status
+llm status --json
+llm doctor
+llm logs
+llm logs --backend ollama --lines 100
+llm logs --backend llama-cpp --follow
+```
+
+- `active`：模型已加载并正在服务。
+- `ready`：服务可达，但没有加载模型。
+- `offline`：端点不可达。
+
+## Agent
+
+可在任意项目目录运行：
 
 ```bash
 claude-local
@@ -50,55 +115,10 @@ codex-local
 hermes-local
 ```
 
-它们内部调用 `llm agent <name>`，因此与 `llm` 使用相同的后端、模型选择和
-隔离配置。
+这些命令会自动激活环境；需要时会在后台启动首选 llama.cpp 模型，并保留调用
+时所在目录。
 
-## 存储路径
-
-```bash
-llm paths
-llm paths --json
-llm config
-llm config --init
-```
-
-默认所有重型文件都放在 `~/LLM`，可通过 `.env` 中的 `LLM_ROOT` 修改。
-
-## 诊断
-
-```bash
-llm doctor
-llm status
-llm models
-```
-
-`llm status` 会探测 llama.cpp、vLLM、Strata 和 Ollama。
-
-## 构建与安装
-
-```bash
-llm build llama-cpp --dry-run
-llm build llama-cpp
-llm build llama-cpp --cuda OFF
-llm install vllm
-llm install ollama
-```
-
-vLLM 会安装在 `~/LLM/.venv`，不会写入 Git 仓库。
-
-## 启动模型
-
-```bash
-llm start
-llm start llama-cpp qwen3.5-4b --context 32768
-llm start vllm Qwen/Qwen3.5-4B
-llm start strata q2_0 --family qwen
-llm start ollama
-```
-
-`llm serve` 是 `llm start` 的兼容别名。
-
-## 选择 Agent
+通用流程：
 
 ```bash
 llm agent
@@ -107,46 +127,39 @@ llm agent codex
 llm agent hermes
 ```
 
-`llm agent` 会自动读取当前后端和模型；如果有多个后端在运行，会提示选择。
-
-需要传递 Agent 自身参数时，在这些参数前加 `--`：
+模型已运行时的显式启动形式：
 
 ```bash
-llm agent hermes --model qwen3.5-4b-official:latest -- \
-  -q "Reply with exactly READY" --oneshot -Q
+llm claude --backend llama-cpp --model qwen3.5-4b-official-Q4_K_M
+llm codex --backend llama-cpp --model qwen3.5-4b-official-Q4_K_M
+llm hermes --backend llama-cpp --model qwen3.5-4b-official-Q4_K_M
 ```
 
-## Claude Code
+Agent 自身参数放在 `--` 后：
 
 ```bash
-llm claude --backend llama-cpp --model qwen3.5-4b
-llm claude --backend vllm --model Qwen3.5-4B
-llm claude --backend strata --model q2_0
-llm claude --backend ollama --model qwen2.5-coder:3b
+llm agent hermes -- -q "Reply with READY" --oneshot -Q
 ```
 
-未指定 `--backend` 时会自动检测正在运行的后端。
-
-## Codex CLI
+## 路径和配置
 
 ```bash
-llm codex --backend llama-cpp --model qwen3.5-4b
-llm codex --backend vllm --model Qwen3.5-4B
-llm codex --backend strata --model q2_0
-llm codex --backend ollama --model qwen3.5:4b
+llm paths
+llm paths --json
+llm config
+llm config --init
 ```
 
-llama.cpp、vLLM、Strata 使用 OpenAI Responses API；Ollama 使用 Codex 内置的
-本地 provider。可通过 `--context` 修改默认 32K 上下文。
+默认数据根目录是 `~/LLM`。可在被 Git 忽略的 `.env` 中设置 `LLM_ROOT`
+或单独路径。模型文件永远不会进入仓库。
 
-## Hermes Agent
+## 后端安装
 
 ```bash
-llm hermes --backend llama-cpp --model qwen3.5-4b
-llm hermes --backend vllm --model Qwen3.5-4B
-llm hermes --backend strata --model q2_0
-llm hermes --backend ollama --model qwen3.5:4b
+llm build llama-cpp --dry-run
+llm build llama-cpp
+llm install ollama
 ```
 
-Hermes 使用 OpenAI 兼容的自定义 endpoint；启动器会设置
-`OPENAI_BASE_URL` 和 `OPENAI_API_KEY`。
+llama.cpp 是主要验证后端，Ollama 是辅助后端和共享模型存储。vLLM 与
+Strata 暂缓用于当前硬件工作流。

@@ -9,6 +9,11 @@ BIN_DIR="${HOME}/.local/bin"
 TARGET="${BIN_DIR}/llm"
 VENV="${LLM_VENV_DIR}"
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required but was not found on PATH." >&2
+  exit 1
+fi
+
 mkdir -p "$BIN_DIR"
 if [[ ! -f "${VENV}/bin/activate" ]]; then
   echo "Creating managed virtualenv: ${VENV}"
@@ -39,3 +44,14 @@ if [[ ":${PATH}:" != *":${BIN_DIR}:"* ]]; then
   echo "Add ${BIN_DIR} to PATH, then open a new terminal:"
   echo "  export PATH=\"${BIN_DIR}:\$PATH\""
 fi
+echo
+echo "Next steps:"
+echo "  1. Check system prerequisites:"
+echo "     ${LOCAL_LLM_AGENT_ROOT}/scripts/setup/check-prereqs.sh"
+echo "  2. Activate the environment:"
+echo "     source ${LOCAL_LLM_AGENT_ROOT}/.venv/bin/activate"
+echo "  3. Build or install a backend:"
+echo "     llm setup"
+echo "  4. Put a GGUF model in ${LLM_MODELS_DIR}"
+echo "     or follow docs/backends.md for a download example."
+echo "  5. Run: llm"

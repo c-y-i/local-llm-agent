@@ -12,7 +12,7 @@ Each entry maps a derived model name to a dict with:
 """
 
 PERSONALITIES = {
-    # --- Cline-tuned coder: bigger context, low temperature, strict tool format
+    # --- Local-agent coder: bigger context, low temperature, strict tool format
     "qwen-coder-cline": {
         "base": "qwen2.5-coder:3b",
         "system": (

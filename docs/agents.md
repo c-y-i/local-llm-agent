@@ -1,104 +1,120 @@
-# Agent Framework Compatibility
+# Agent Compatibility
 
 English | [简体中文](agents.zh-CN.md)
 
-The launchers support Claude Code, Codex CLI, and Hermes Agent against the same
-local model servers. Each framework uses a different API surface, so the
-compatibility layer is framework-specific.
+## Tested
 
-Everyday use:
+The following paths were tested locally on an RTX 3050 Laptop GPU with 6 GB
+VRAM:
 
-```bash
-llm start       # choose backend and existing model
-claude-local    # or codex-local / hermes-local
-```
+| Agent | llama.cpp | Ollama | Verified |
+|---|---|---|---|
+| Claude Code | Anthropic Messages API | Compatibility proxy | Yes |
+| Codex CLI | OpenAI Responses API | Built-in integration | Yes |
+| Hermes Agent | OpenAI Chat Completions | Native | Yes |
 
-| Framework | Required protocol | llama.cpp | vLLM | Strata | Ollama |
-|---|---|---|---|---|---|
-| Claude Code | Anthropic Messages `/v1/messages` | Native | Native | Native | Compatibility proxy |
-| Codex CLI | OpenAI Responses `/v1/responses` | Current build | Native | Native | Built-in OSS provider |
-| Hermes Agent | OpenAI Chat Completions | Native | Native | Native | Native |
+The shared end-to-end test used official Qwen3.5-4B Q4_K_M on llama.cpp.
+Hermes was also verified with official Qwen3.5-2B and large context windows.
 
-## Start A Backend
+## Direct Commands
 
 ```bash
-llm serve llama-cpp qwen3.5-4b
+claude-local
+codex-local
+hermes-local
 ```
 
-The model must support tool calling. For llama.cpp, use a current build
-because older binaries may only expose Chat Completions.
+These commands:
+
+- activate the managed virtualenv automatically;
+- work from any project directory;
+- preserve the caller's working directory;
+- reuse an active local model;
+- otherwise start the preferred installed llama.cpp model in the background;
+- wait for the model server to become healthy before launching the agent.
+
+Background llama.cpp logs are written to `$LLM_ROOT/run/llama-server.log`.
 
 ## Claude Code
 
+llama.cpp exposes the Anthropic Messages API directly:
+
 ```bash
-llm claude --backend llama-cpp --model qwen3.5-4b
+claude-local
 ```
 
-Claude Code connects directly to the Anthropic endpoint for llama.cpp, vLLM,
-and Strata. Ollama retains the compatibility proxy.
+For Ollama, `llm claude` starts the local Anthropic compatibility proxy
+automatically. The proxy normalizes Claude Code's system-message layout and
+uses the model server's context window.
 
 ## Codex CLI
 
 ```bash
-llm codex --backend llama-cpp --model qwen3.5-4b
-llm codex --backend vllm --model Qwen3.5-4B
-llm codex --backend strata --model q2_0
-llm codex --backend ollama --model qwen3.5:4b
+codex-local
 ```
 
-For custom providers, Codex currently uses the Responses API. The wrapper
-supplies:
-
-- provider base URL
-- `wire_api = "responses"`
-- local API key environment variable
-- selected model
-- `model_context_window`, defaulting to 32K
-
-For Ollama, the wrapper delegates to Ollama's Codex integration. It also uses
-an isolated `CODEX_HOME` at `$LLM_ROOT/codex-local`, so existing `~/.codex`
-providers such as DeepSeek remain unchanged.
-
-Use `--context` to match the backend:
-
-```bash
-llm codex --backend llama-cpp --model qwen3.5-4b --context 65536
-```
-
-The official Codex configuration reference documents custom model providers
-and the Responses transport:
-<https://developers.openai.com/codex/config-reference>
+The Codex launcher configures a temporary custom provider using the Responses
+API. Local Codex state is isolated under `$LLM_ROOT/codex-local`, so an
+existing `~/.codex` configuration is not modified.
 
 ## Hermes Agent
 
 ```bash
-llm hermes --backend llama-cpp --model qwen3.5-4b
+hermes-local
 ```
 
-The wrapper configures Hermes' custom provider:
+Hermes uses a custom OpenAI-compatible provider and keeps state under
+`$LLM_ROOT/hermes-local`.
 
-```text
-OPENAI_BASE_URL=http://127.0.0.1:8080/v1
-OPENAI_API_KEY=local
-provider=custom
+For Ollama, prefer the agent-ready tags with explicit renderer/parser,
+deterministic sampling, and 32K–64K context. See
+[`models.md`](models.md#ollama-agent-tags). Native and OpenAI-compatible
+tool-call responses were verified with `qwen3.5-2b-official` and the Huihui
+2B agent tag.
+
+### Context
+
+Hermes reads the live llama.cpp context window from server metadata. Do not
+set any of these in Hermes `config.yaml` for normal local use:
+
+```yaml
+model:
+  context_length: 65536
+  ollama_num_ctx: 65536
 ```
 
-The same command works with vLLM, Strata, and Ollama. Hermes documents custom
-OpenAI-compatible endpoints as a first-class provider.
+Hermes gives those values priority and may clamp a 256K server down to 64K.
+`llm hermes` detects a conflicting setting and refuses to launch. Remove one
+with:
 
-Hermes sessions use `$LLM_ROOT/hermes-local` as `HERMES_HOME`, keeping local
-agent state separate from any existing Hermes configuration.
+```bash
+HERMES_HOME=/home/cy/LLM/hermes-local \
+  hermes config unset model.context_length
+HERMES_HOME=/home/cy/LLM/hermes-local \
+  hermes config unset model.ollama_num_ctx
+```
 
-## Claude Proxy
+Restart the Hermes session after changing context configuration.
 
-Ollama does not natively provide the Anthropic chat template behavior Claude
-Code expects. `llm claude --backend ollama` starts the repository's
-Anthropic-compatible proxy automatically on port 4000 and merges all system
-instructions into the required leading system block.
+### Lean Local Profile
 
-## Agent Safety
+The default Hermes prompt and toolsets can consume roughly 13K tokens before
+project content. Skills are progressive: only the short index is always
+present, while the full `SKILL.md` is read when used.
 
-These frameworks can edit files and execute commands. Use Git, keep approval
-prompts enabled, and work in a disposable branch or sandbox while evaluating a
-small local model. API compatibility does not guarantee reliable multi-step
+For 2B models, prefer a lean coding toolset and do not preload large skills:
+
+```bash
+hermes-local -t terminal,file,skills,todo,clarify
+```
+
+Disable or avoid browser, computer use, delegation, connections, image
+generation, TTS, and memory tools during lean coding sessions. The 4B model
+has more headroom but still benefits from a focused toolset.
+
+## Safety
+
+Agents can edit files and execute commands. Keep approval prompts enabled,
+use Git, and work in a branch or disposable directory while evaluating a small
+local model. Protocol compatibility does not guarantee reliable multi-step
 tool use.

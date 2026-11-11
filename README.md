@@ -2,214 +2,155 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Locally deployable LLM agent workspace — run models on your own hardware and
-plug them into agent workflows. Full control, private, and no token limits.
+Run local coding models on your own hardware and connect them to Claude Code,
+Codex CLI, or Hermes Agent. The repository contains code, documentation, and
+small configuration files; model weights and runtime state live outside Git.
 
-The repository contains code, documentation, and small configuration files.
-Models, engine builds, caches, and virtual environments live under a separate
-`LLM_ROOT`, by default `~/LLM`.
+## Reference Setup And Tested Agents
 
-## CLI
+The reference setup is an RTX 3050 Laptop GPU with 6 GB VRAM. The current
+workflow has been tested end to end there with:
 
-Install the command once:
+- Claude Code
+- Codex CLI
+- Hermes Agent
+
+The shared tested backend was llama.cpp with official Qwen3.5-4B Q4_K_M.
+Hermes was also verified with official Qwen3.5-2B, including large context
+windows. These models are examples for this hardware tier, not requirements.
+Machines with more VRAM and RAM can run larger and stronger models.
+
+## Current Scope
+
+| Component | Status | Endpoint |
+|---|---|---|
+| llama.cpp | Primary local backend | `http://127.0.0.1:8080` |
+| Ollama | Secondary backend and model store | `http://127.0.0.1:11434` |
+| Claude Code | Tested | llama.cpp native, Ollama through proxy |
+| Codex CLI | Tested | llama.cpp Responses provider |
+| Hermes Agent | Tested | OpenAI-compatible endpoint |
+| vLLM | Deferred | Not part of the current hardware workflow |
+| Strata | Deferred | Not part of the current hardware workflow |
+
+Documentation and screenshots for older Cline, Copilot, control-panel,
+portable-launcher, vLLM, and Strata workflows were removed for now. The docs
+now describe the tested local-agent path only.
+
+## Install
 
 ```bash
 ./scripts/setup/install-llm.sh
 source .venv/bin/activate
+llm --version
 ```
 
-`llm` requires this virtualenv and prints the activation command if it is not active.
-
-Common commands:
-
-```bash
-llm                 # interactive main menu
-llm setup           # install or build a backend
-llm start           # select a backend and existing model
-llm agent           # select an agent for the running model
-llm status
-llm models
-llm doctor
-llm build llama-cpp
-llm install vllm
-llm claude --backend llama-cpp --model qwen3.5-4b
-```
-
-Direct local-agent commands are also installed:
-
-```bash
-source .venv/bin/activate
-claude-local
-codex-local
-hermes-local
-```
-
-They use the same backend/model selection as `llm agent`. Keep `llm` for
-starting models, setup, and status.
-
-Customize locations by copying `.env.example` to `.env` and setting
-`LLM_ROOT`, `LLM_MODELS_DIR`, or any individual override.
+`llm` requires the managed Python environment. The direct agent commands
+activate it automatically.
 
 ## Quick Start
 
+Check prerequisites, build llama.cpp, and obtain a model:
+
 ```bash
-./scripts/setup/install-llm.sh
+./scripts/setup/check-prereqs.sh
+source .venv/bin/activate
+llm setup
+
+curl -fL --retry 5 -C - \
+  -o ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
+mv ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf
+```
+
+The download is about 2.6 GB. Qwen3.5-2B is a smaller alternative documented in
+[`docs/models.md`](docs/models.md). Install the Claude Code, Codex CLI, or
+Hermes CLI you intend to use; the project checks for them in `llm doctor`.
+
+Then start the interactive tool:
+
+```bash
 llm
 ```
 
-The menu can install/build a backend, start an installed model, or launch an
-agent against a running model. Script-friendly commands are documented below.
+The first screen shows the active model separately from reachable services.
+An Ollama daemon without a loaded model appears as `ready (idle)`, not active.
+The menu always defaults to running a model; browsing models is second and
+opening an agent is third.
 
-The workspace also supports three additional inference paths:
+The menu also includes stopping the active model and runtime diagnostics. If
+llama.cpp already occupies port 8080, `llm start` offers to replace it.
+Only one inference engine runs at a time: switching between llama.cpp and
+Ollama stops the previous engine automatically.
 
-| Backend | Standard URL | Model format | Start |
-|---|---|---|---|
-| Ollama | `http://127.0.0.1:11434` | Ollama/GGUF | `llm start ollama` |
-| llama.cpp | `http://127.0.0.1:8080` | GGUF | `llm start llama-cpp` |
-| vLLM | `http://127.0.0.1:8000` | Hugging Face safetensors/AWQ/GPTQ | `llm start vllm` |
-| Strata | `http://127.0.0.1:8082` | Strata model packs | `llm start strata` |
-
-llama.cpp, vLLM, and Strata expose Anthropic's Messages API directly. Ollama
-uses the compatibility proxy under `scripts/ollama/` for Claude Code.
-
-Portable drive users: Ollama must be installed on each host first (see
-[`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md#prerequisites)),
-then run `./scripts/setup/install-portable-ollama-command.sh` once per host and
-use `portable-ollama serve` / `portable-ollama run <model>`.
-
-## Agents
-
-### Cline
-
-Connect to llama.cpp for direct GGUF control:
-
-| Field | Value |
-|---|---|
-| API Provider | `OpenAI Compatible` |
-| Base URL | `http://127.0.0.1:8080/v1` |
-| API Key | `114514` |
-| Model ID / Context | printed by `./scripts/llama-cpp/cline-server.sh` |
-
-Or connect directly to Ollama (`API Provider: Ollama`, Base URL `http://127.0.0.1:11434`).
-
-<img src="media/cline_demo.png" alt="Cline running with a local Ollama model" width="720">
-
-Full guide: [`docs/cline.md`](docs/cline.md)
-
-### Claude Code
-
-Start a model and choose the agent interactively:
+Typical two-terminal workflow:
 
 ```bash
-llm start             # terminal 1
-claude-local          # terminal 2
-```
+# Terminal 1
+source .venv/bin/activate
+llm start
 
-Explicit commands remain available:
-
-```bash
-./scripts/llama-cpp/claude-server.sh <model>
-./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
-```
-
-Full guide: [`docs/claude-code.md`](docs/claude-code.md). vLLM and Strata setup:
-[`docs/usage-vllm.md`](docs/usage-vllm.md),
-[`docs/usage-strata.md`](docs/usage-strata.md).
-
-### Codex
-
-```bash
+# Terminal 2, from any project directory
+claude-local
+# or
 codex-local
-```
-
-Codex uses the Responses API for custom providers. `llm codex` configures the
-provider automatically. Full guide: [`docs/agents.md`](docs/agents.md).
-
-### Hermes
-
-```bash
+# or
 hermes-local
 ```
 
-Hermes connects through its custom OpenAI-compatible provider.
+The `*-local` commands preserve the directory where they are invoked and use
+the active backend automatically.
 
-### Copilot
+## Model Inventory
 
-```bash
-./scripts/ollama/serve.sh
-ollama pull <model>
-```
-
-Then select the local model in VS Code Copilot Chat.
-
-<img src="media/copilot_ollama.png" alt="VS Code Copilot Chat model picker showing local Ollama models" width="720">
-
-Full guide: [`docs/copilot.md`](docs/copilot.md)
-
-## Dashboard
-
-Single-file Python dashboards — nothing beyond stdlib.
-
-### Control Panel
-
-Full service and model controls at `http://localhost:8766`.
+The CLI works with any compatible GGUF model. The models mentioned in these
+docs are examples used to validate the workflow on the reference laptop; users
+should choose a model that fits their own hardware and quality requirements.
 
 ```bash
-python3 control_panel.py
+llm models
+llm models --sort name
+llm models --json
 ```
 
-<img src="media/dashboard.gif" alt="Local LLM Control Panel dashboard" width="720">
+Model listings show installed sizes and sort smallest-first automatically.
+`llm start` also displays sizes in its model picker.
 
-### Monitor
-
-Read-only status view at `http://localhost:8765` — safe to expose on shared machines.
-
-```bash
-python3 monitor.py
-```
-
-Full guide: [`docs/control-panel.md`](docs/control-panel.md)
-
-## Layout
+Do not put weights in this repository. The default storage layout is:
 
 ```text
-~/LLM/                 # LLM_ROOT, customizable in .env
-  models/              # GGUF models for llama.cpp
-    strata/            # Strata model packs
-  ollama/              # Ollama state and model store
-  llama.cpp/           # llama.cpp source and build
-  huggingface/         # shared Hugging Face/vLLM cache
-  strata/              # Strata application state
-  .venv/               # managed Python virtualenv (required by llm)
-  run/                 # runtime state and logs
-
-~/Projects/local-llm-agent/  # lightweight Git repository
+~/LLM/
+  models/        # shared GGUF files
+  llama.cpp/     # engine source and build
+  ollama/        # Ollama state and model links
+  .venv/         # managed Python environment
+  run/           # logs and runtime state
 ```
 
-Every path is overridable through `.env` or environment variables. The repo
-still ignores model artifacts as a safety net. See
-[`docs/setup.md`](docs/setup.md) for the complete path reference.
+Set `LLM_ROOT` or individual paths in `.env` to relocate them. See
+[`docs/backends.md`](docs/backends.md).
 
-## Docs
+## Context
 
-| File | What it covers |
+The context window belongs to the running backend. Hermes and the other agent
+launchers read the live server value; they should not carry a duplicate
+hard-coded context setting. The launcher stops if it finds a stale Hermes
+context pin that conflicts with the server.
+
+For llama.cpp, the launch menu offers model-appropriate context sizes and
+allows a custom value. Higher context consumes more VRAM or system RAM. See
+[`docs/context-memory.md`](docs/context-memory.md).
+
+## Documentation
+
+| Document | Contents |
 |---|---|
-| [`docs/setup.md`](docs/setup.md) | Portable layout, env vars, services, setup flow |
-| [`docs/cli.md`](docs/cli.md) | `llm` command reference |
-| [`docs/control-panel.md`](docs/control-panel.md) | Control panel and monitor — usage, env vars |
-| [`docs/hardware-matching.md`](docs/hardware-matching.md) | Hardware tiers → model choices |
-| [`docs/portable-llm-launcher.md`](docs/portable-llm-launcher.md) | Portable LLM Launcher for Linux, macOS, and Windows |
-| [`docs/usage-llama-cpp.md`](docs/usage-llama-cpp.md) | llama.cpp CLI/server usage |
-| [`docs/usage-ollama.md`](docs/usage-ollama.md) | Ollama service and API usage |
-| [`docs/usage-vllm.md`](docs/usage-vllm.md) | vLLM installation, serving, and Claude Code |
-| [`docs/usage-strata.md`](docs/usage-strata.md) | Strata model planning and serving |
-| [`docs/cline.md`](docs/cline.md) | Cline integration and troubleshooting |
-| [`docs/copilot.md`](docs/copilot.md) | Copilot Chat/CLI with Ollama |
-| [`docs/claude-local.md`](docs/claude-local.md) | Legacy Ollama-specific model picker |
-| [`docs/claude-code.md`](docs/claude-code.md) | Claude Code CLI with llama.cpp, vLLM, Strata, or Ollama |
-| [`docs/agents.md`](docs/agents.md) | Claude Code, Codex CLI, and Hermes compatibility |
-| [`docs/claude-proxy.md`](docs/claude-proxy.md) | Local Anthropic proxy internals |
-| [`docs/context-memory.md`](docs/context-memory.md) | Context windows, KV cache, persistent memory |
-| [`docs/models.md`](docs/models.md) | Model families and what they do |
-| [`docs/maintenance.md`](docs/maintenance.md) | Add / remove / audit / update models |
-| [`docs/tuning.md`](docs/tuning.md) | Parameters and Modelfile workflow |
+| [`docs/cli.md`](docs/cli.md) | `llm` commands and interactive workflow |
+| [`docs/agents.md`](docs/agents.md) | Claude Code, Codex CLI, and Hermes Agent |
+| [`docs/backends.md`](docs/backends.md) | llama.cpp, Ollama, storage, and lifecycle |
+| [`docs/models.md`](docs/models.md) | Tested models and recommendations |
+| [`docs/context-memory.md`](docs/context-memory.md) | Context windows and KV cache |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures and diagnosis |
+
+Screenshots and media are intentionally omitted until the CLI presentation is
+stable.

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Show llama-server context/token/VRAM status for the Cline endpoint.
+# Show llama-server context/token/VRAM status for local agent clients.
 #
 # Usage:
-#   cline-status.sh             # once, port from LLAMA_CPP_PORT (default 8080)
-#   cline-status.sh 8081        # once, custom port
-#   cline-status.sh 8080 2      # refresh every 2 seconds
+#   agent-status.sh             # once, port from LLAMA_CPP_PORT (default 8080)
+#   agent-status.sh 8081        # once, custom port
+#   agent-status.sh 8080 2      # refresh every 2 seconds
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../common/env.sh
@@ -85,7 +85,7 @@ for slot in slots:
     print(f"  slot {slot.get('id')}: {state}, decoded_now={decoded}")
 
 if metrics is None:
-    print("Metrics: disabled. Restart cline-server.sh from the updated wrapper to enable /metrics.")
+    print("Metrics: disabled. Restart agent-server.sh from the updated wrapper to enable /metrics.")
 else:
     high = int(metrics.get("n_tokens_max", 0))
     pct = (high / n_ctx * 100.0) if n_ctx else 0.0

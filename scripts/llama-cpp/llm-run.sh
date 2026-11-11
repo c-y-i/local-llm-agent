@@ -44,7 +44,7 @@ fi
 
 if [[ ! -x "$LLAMA_CPP_BIN" ]]; then
   echo "llama-cli not found or not executable: $LLAMA_CPP_BIN" >&2
-  echo "Did you build llama.cpp? See ${LOCAL_LLM_AGENT_ROOT}/docs/setup.md" >&2
+  echo "Did you build llama.cpp? See ${LOCAL_LLM_AGENT_ROOT}/docs/backends.md" >&2
   exit 1
 fi
 

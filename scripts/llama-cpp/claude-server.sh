@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start llama-server with settings suited to Claude Code's tool loop.
+# Start llama-server with settings suited to local coding agents.
 #
 # Usage:
 #   claude-server.sh [model-name] [port]
@@ -20,4 +20,4 @@ fi
 
 export JINJA="${JINJA:-1}"
 export N_PARALLEL="${N_PARALLEL:-1}"
-exec "${SCRIPT_DIR}/cline-server.sh" "$1" "$2"
+exec "${SCRIPT_DIR}/agent-server.sh" "$1" "$2"

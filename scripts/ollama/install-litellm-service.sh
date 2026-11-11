@@ -42,7 +42,7 @@ sudo systemctl daemon-reload
 sudo systemctl disable "$UNIT_NAME" >/dev/null 2>&1 || true
 
 echo "Installed ${UNIT_DST}"
-echo "Proxy internals: ${LOCAL_LLM_AGENT_ROOT}/docs/claude-proxy.md"
+echo "Agent setup: ${LOCAL_LLM_AGENT_ROOT}/docs/agents.md"
 echo
 echo "Manual controls:"
 echo "  sudo systemctl start litellm-proxy"

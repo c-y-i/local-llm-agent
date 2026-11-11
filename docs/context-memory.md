@@ -2,101 +2,85 @@
 
 English | [简体中文](context-memory.zh-CN.md)
 
-Local agent setups use several different things that people casually call "memory." They behave differently.
+## One Source Of Truth
 
-## Types Of Memory
+The running backend owns the context window. Agent launchers read the live
+server value. Avoid static client-side context pins that can silently override
+the model server.
 
-| Kind | What it is | Persists? | Main limit |
-|---|---|---:|---|
-| Model context | Tokens sent in the current request: prompt, tools, files, conversation | No | Context window and KV cache |
-| KV cache | Runtime cache for the current context tokens | No | VRAM/RAM |
-| Project rules | Files like `.clinerules` that the agent reads into prompts | Yes | Only helps if included in context |
-| Repo/docs | Markdown, code, configs, scripts | Yes | Agent must search/read them |
-| Ollama model store | Manifests, blobs, Modelfiles | Yes | Disk |
-| llama.cpp prompt cache | Optional server-side prompt reuse | Runtime-dependent | Cache settings and server lifecycle |
-
-## Context Window
-
-The context window is the maximum number of tokens the model can consider in one request. Agent tools can spend a lot of that budget before your actual message because they include tool schemas, rules, file summaries, and conversation history.
-
-For Cline, set the Context Window Size to the value printed by:
+For llama.cpp:
 
 ```bash
-./scripts/llama-cpp/cline-server.sh
+curl -s http://127.0.0.1:8080/props
+curl -s http://127.0.0.1:8080/v1/models
 ```
 
-or by:
+Both expose the allocated `n_ctx`. The model's training limit may be larger or
+equal to the allocated window.
+
+## Context, KV Cache, And Files
+
+| Item | Persists? | Purpose |
+|---|---|---|
+| Context window | No | Maximum tokens considered in one request |
+| KV cache | No | Runtime attention state, usually in VRAM or RAM |
+| Chat/session state | Agent-dependent | Conversation history |
+| Repository files | Yes | Project code, instructions, and documentation |
+| Agent instructions | Yes | `AGENTS.md`, Hermes `SOUL.md`, and similar files |
+
+Files are not automatically remembered. The agent must search or read them
+during a task.
+
+## Choosing A Context Size
+
+Higher values allow longer conversations and larger repository slices but cost
+more memory and reduce cache headroom:
+
+- 16K-32K: conservative, fast, good for small edits.
+- 64K: practical default for Qwen3.5-4B coding work.
+- 128K: useful for broader repository work or long sessions.
+- 256K: experimental on this hardware; expect slower prefill and high memory
+  pressure.
+
+Qwen3.5-2B has a native 262,144-token limit. It was verified at 128K with the
+KV cache on the GPU and at 256K with `KV_OFFLOAD=0`.
+
+## llama.cpp Controls
 
 ```bash
-sudo systemctl status llama-cline
+llm start llama-cpp qwen3.5-4b-official-Q4_K_M --context 65536
+llm start llama-cpp qwen3.5-4b-official-Q4_K_M --gpu-layers 24
 ```
 
-Do not assume every model can use the same context size. A smaller model can still have a larger KV cache per token than a larger-looking model. A Raspberry Pi-class CPU setup may need 2k-4k context, while a high-end GPU can often use much larger contexts with the right quantization and KV settings.
-
-## KV Cache And VRAM
-
-KV cache is the runtime memory used to hold attention keys/values for the current context. It grows with:
-
-- context size,
-- number of layers,
-- number of KV heads,
-- KV precision,
-- number of parallel slots.
-
-Symptoms of too much KV pressure:
-
-- `cudaMalloc failed: out of memory`,
-- `unable to allocate CUDA0 buffer`,
-- server starts with one model but crashes with a larger context,
-- Ollama and llama.cpp cannot run at the same time.
-
-Fixes:
+Environment overrides:
 
 ```bash
-sudo systemctl stop ollama
-N_CTX=8192 ./scripts/llama-cpp/cline-server.sh <model>
-N_GPU_LAYERS=16 ./scripts/llama-cpp/cline-server.sh <model>
+KV_CACHE_TYPE=q8_0 \
+  llm start llama-cpp qwen3.5-4b-official-Q4_K_M --context 65536
+
+KV_CACHE_TYPE=q4_0 KV_OFFLOAD=0 \
+  llm start llama-cpp qwen3.5-2b-official-Q4_K_M --context 262144
 ```
 
-For CPU-only or SBC systems, use very small models, low context, and `N_GPU_LAYERS=0` if your llama.cpp build expects that style of CPU-only execution.
+Lower GPU layers move model layers to CPU/RAM. Disabling KV offload moves the
+cache itself to CPU/RAM.
 
-## Persistent Project Memory
+## Hermes Context
 
-Use repo files for durable memory:
+Hermes must not keep a global `model.context_length` or
+`model.ollama_num_ctx` when the intent is to follow the active backend. The
+launcher detects conflicts and reports the exact setting to remove.
 
-- `.clinerules` for agent behavior and tool-use guardrails,
-- `README.md` for the public quick-start,
-- `docs/*.md` for workflows and troubleshooting,
-- source-controlled scripts for repeatable operations.
+Agent-specific instruction files still consume context. Keep them short and
+load detailed procedures on demand.
 
-These are not automatically "known" forever. The agent must include them in context or search/read them during the task.
-
-## Practical Defaults
-
-For agentic coding:
-
-- prefer a code/tool-tuned model over a general chat model,
-- keep `Temperature` around `0.2`,
-- set Cline's Context Window Size to the wrapper's printed context,
-- use `.clinerules` for tool-call formatting guardrails,
-- keep Ollama stopped when `llama-cline` needs full GPU memory.
-
-Hardware-specific defaults:
-
-| Hardware | Starting point |
-|---|---|
-| Raspberry Pi / SBC | 0.5B-1.5B model, Q4 or smaller, 2k-4k context, short tasks. |
-| CPU laptop | 1B-7B Q4, 4k-8k context, expect slower agent loops. |
-| Small GPU | 1B-4B Q4, model-specific context, avoid competing services. |
-| Mid/high GPU | 7B-32B+ quantized, larger context, better Cline reliability. |
-
-See [`hardware-matching.md`](hardware-matching.md) for specific starter model recommendations by hardware tier.
-
-## Debug Commands
+## Debugging
 
 ```bash
-./scripts/common/gpu-status.sh
-./scripts/llama-cpp/cline-status.sh
-nvidia-smi
+llm status
+curl -s http://127.0.0.1:8080/props
+curl -s http://127.0.0.1:8080/slots
+curl -s http://127.0.0.1:8080/metrics
 ollama ps
+nvidia-smi
 ```

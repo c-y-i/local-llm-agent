@@ -2,146 +2,152 @@
 
 English | [简体中文](models.zh-CN.md)
 
-This is an example catalog of model families and what they are generally useful for in a local-agent workspace. It intentionally does not try to match models to hardware; use [`hardware-matching.md`](hardware-matching.md) for that.
+## Tested Models
 
-Your installed models are whatever appears in:
+The models below are examples tested on the 6 GB reference laptop. They are
+not required, exclusive, or a ceiling. Hardware with more VRAM and RAM can run
+larger and more capable GGUF models.
+
+| Model | Local file | Size | Role |
+|---|---|---:|---|
+| Qwen3.5-4B official Q4_K_M | `qwen3.5-4b-official-Q4_K_M.gguf` | 2.6 GB | Recommended daily agentic coding model |
+| Qwen3.5-2B official Q4_K_M | `qwen3.5-2b-official-Q4_K_M.gguf` | 1.2 GB | Faster, lower-memory model with long-context options |
+| Gemma 4 E4B official QAT Q4_0 | `gemma4-e4b-official-QAT-Q4_0.gguf` | 4.8 GB | General and multimodal-oriented local option |
+| Qwen3.5-9B Defiant IQ3_M | `qwen3.5-9b-defiant-IQ3_M.gguf` | 5.2 GB | Experimental larger model; more CPU/RAM pressure |
+| Huihui Qwen3.5-2B abliterated | Ollama tag `huihui_ai/qwen3.5-abliterated:2b-agent` | 1.9 GB | Agent-ready uncensored Ollama model; 32K context |
+| Huihui Qwen3.5-2B abliterated F16 | `huihui-qwen3.5-2b-abliterated-f16.gguf` | 3.8 GB | High-precision llama.cpp GGUF; conservative 32K default |
+| Huihui Qwen3.5-4B abliterated | Ollama tag `huihui_ai/qwen3.5-abliterated:4b-agent` | 3.3 GB | Agent-ready uncensored Ollama model; 32K context |
+
+Qwen3.5-4B is the default recommendation for local coding agents on the tested
+6 GB GPU. Qwen3.5-2B is useful when context size or speed matters more than
+raw model capability. Use the hardware tier and model quality you need rather
+than limiting the setup to these examples.
+
+Official-compatible GGUF downloads:
 
 ```bash
-./scripts/llama-cpp/llm-list.sh
-ollama list
+curl -fL --retry 5 -C - \
+  -o ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf
+mv ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
+  ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf
+
+sha256sum ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf
+# expected: 00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
+
+curl -fL --retry 5 -C - \
+  -o ~/LLM/models/qwen3.5-2b-official-Q4_K_M.gguf.part \
+  https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf
+mv ~/LLM/models/qwen3.5-2b-official-Q4_K_M.gguf.part \
+  ~/LLM/models/qwen3.5-2b-official-Q4_K_M.gguf
+
+sha256sum ~/LLM/models/qwen3.5-2b-official-Q4_K_M.gguf
+# expected: aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
 ```
 
-Keep large GGUF files in `models/`; they are ignored by Git.
+## Agent Fit
 
-## Discovery Sources
-
-- Ollama library: <https://ollama.com/library>
-- Hugging Face models with `llama.cpp` support: <https://huggingface.co/models?other=llama.cpp>
-
-Prefer official or well-maintained model pages, recent quantizations, clear licenses, and model families that fit the task.
-
-## Model Roles
-
-| Role | What to look for | Good for | Watch out for |
+| Model | Claude Code | Codex CLI | Hermes |
 |---|---|---|---|
-| General chat | Instruct/chat model, broad language coverage | Q&A, drafting, summaries, everyday assistant use | May be weaker at exact tool-call formats. |
-| Coding | Code-tuned or coder model | Editing code, explaining errors, repo navigation, Cline | General prose can feel less natural. |
-| Tool / agent | Tool/function tags, strong instruction following | Cline, automation loops, structured responses | Some models still emit malformed tool calls. |
-| Reasoning | Thinking/reasoning tags | Math, planning, solo analysis | Thinking text can confuse agent tool protocols. |
-| Vision | Vision/multimodal tags | Images, screenshots, OCR-like workflows | Usually heavier and not needed for text-only Cline. |
-| Embedding | Embedding tag/model | Search, retrieval, clustering | Not a chat model. |
+| Qwen3.5-4B official | Tested | Tested | Tested |
+| Qwen3.5-2B official | Supported | Supported | Tested |
+| Gemma 4 E4B | Experimental | Experimental | Experimental |
+| Qwen3.5-9B Defiant | Experimental | Experimental | Experimental |
+| Huihui Qwen3.5-2B abliterated | Not supported by current llama.cpp build | Not tested | Ollama only; not agent-tested |
+| Huihui Qwen3.5-2B abliterated F16 | llama.cpp load verified | Not tested | Not agent-tested |
+| Huihui Qwen3.5-4B abliterated | Not installed for llama.cpp | Not tested | Ollama only; not agent-tested |
 
-## Example Catalog
+The tested result is protocol compatibility and successful local completion.
+Small models can still make poor multi-step editing decisions or malformed
+tool calls.
 
-| Model / family | Role | What it does |
-|---|---|---|
-| `qwen2.5-coder` | Coding / agent | Code-focused Qwen family with small through large sizes; good Cline candidate. |
-| `qwen3-coder` | Coding / agent | Agentic coding family for larger local setups. |
-| `starcoder2` | Coding | Code model family with 3B/7B/15B-style sizing. |
-| `codegemma` | Coding | Lightweight coding-oriented Gemma variants. |
-| `granite-code` | Coding | IBM code model family, useful for code intelligence experiments. |
-| `llama3.2` | General chat | Small Llama family, useful for general chat and simple local tasks. |
-| `qwen3` | General / reasoning | Broad dense and MoE Qwen family; some tags may emit thinking text. |
-| `gemma3` / `gemma4` | General / multimodal / agent | Modern Gemma families with text, tool, and multimodal-oriented tags. `gemma4:e4b` is a tested Ollama pick for Cline/Ollama agent work on an RTX 3050 laptop with 6 GB VRAM. |
-| `mistral` / `mistral-nemo` / `mistral-small` | General / tool | Mistral family for chat, tools, and larger-context experiments. |
-| `phi4-mini` | General / tool | Compact instruction-following model; useful as a terse fallback. |
-| `deepseek-r1` | Reasoning | Strong reasoning family; usually better for solo reasoning than Cline tool loops. |
-| `gpt-oss` | Reasoning / agent | Open-weight reasoning and agentic family in larger sizes. |
-| `tinyllama` | Tiny general chat | Very small baseline for constrained devices and smoke tests. |
-| `smollm2` | Tiny general chat | Compact model family with very small and 1.7B-class sizes. |
-| `nomic-embed-text`, `bge-m3`, `embeddinggemma` | Embedding | Retrieval/search embeddings; not used as Cline chat models. |
-| GGUF repos tagged `llama.cpp` | Runtime format | Quantized model files for llama.cpp; choose family and quantization by use case. |
+### Huihui Abliterated Variant
 
-## Pulling from Hugging Face
+The Huihui model was installed from the publisher's Ollama tag. Its GGUF is
+usable by Ollama but the installed llama.cpp build rejects its
+`qwen35.rope.dimension_sections` metadata. The canonical file is therefore
+stored under `~/LLM/ollama/models/external/` instead of the shared llama.cpp
+model directory.
 
-Any GGUF model on Hugging Face can be pulled and run directly with Ollama using the `hf.co/` prefix — no separate download or conversion needed:
+Use the agent-ready tag through Ollama:
 
 ```bash
-# Syntax
-ollama pull hf.co/<user>/<repo>:<quant-tag>
-ollama run  hf.co/<user>/<repo>:<quant-tag>
-
-# Example
-ollama pull hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
-ollama run  hf.co/bartowski/Qwen2.5-14B-Instruct-GGUF:Q4_K_M
+llm start ollama huihui_ai/qwen3.5-abliterated:2b-agent
 ```
 
-The quant tag is the filename minus the model-name prefix and `.gguf` suffix — e.g. `Qwen2.5-14B-Instruct-Q4_K_M.gguf` → `:Q4_K_M`.
+It is an uncensored experimental model and has not been validated for agentic
+coding. Review its outputs accordingly.
 
-**Recommended quantizations:**
-
-| Tag | Size vs quality |
-|---|---|
-| `Q4_K_M` | Best balance. Start here. |
-| `Q5_K_M` | Higher quality, more VRAM. Good if you have headroom. |
-| `IQ4_XS` | Slightly smaller than Q4_K_M, similar quality. |
-| `Q2_K` | Smallest, lowest quality. Use only when RAM is very tight. |
-
-Browse models at [huggingface.co/bartowski](https://huggingface.co/bartowski) — maintains reliable GGUF quantizations for most popular model families.
-
-## Uncensored / Unrestricted Models
-
-These models have had safety fine-tuning removed or heavily reduced. They respond without refusals on most topics but have **no** tool-use capability (`tools` not in `capabilities`) so they cannot drive Cline agent loops — use them for freeform chat only.
-
-| Model | Ollama tag | Size | Role | Notes |
-|---|---|---|---|---|
-| `dolphin-phi` 2.7B | `dolphin-phi:2.7b` | 1.6 GB | General chat (uncensored) | Dolphin fine-tune on Phi-2. Fits fully on GPU. Fast. |
-| `dolphin-llama3` 8B | `dolphin-llama3:8b` | 4.7 GB | General chat (uncensored) | Dolphin 2.9 fine-tune on Llama 3 8B. CPU-spill on 4 GB VRAM cards (~6–10 tok/s). |
+The separate mradermacher F16 GGUF loads in llama.cpp and can be started with:
 
 ```bash
-ollama pull dolphin-phi:2.7b
-ollama pull dolphin-llama3:8b
+llm start llama-cpp huihui-qwen3.5-2b-abliterated-f16
 ```
 
-## Local Names
+Because the F16 weights consume 3.8 GB before KV cache and compute buffers, its
+menu default is conservatively set to 32K context. Verified menu options are
+16K, 32K, 64K, 128K, and 256K. 128K fits with the KV cache on the GPU; 256K
+automatically uses `KV_OFFLOAD=0` so the cache moves to system RAM.
 
-This repo may use local file names that differ from Ollama tags:
+## Ollama Agent Tags
 
-| Local name | Meaning |
-|---|---|
-| `qwen2.5-coder-3b` | GGUF file expected at `models/qwen2.5-coder-3b.gguf`. |
-| `llama3.2-3b` | GGUF file expected at `models/llama3.2-3b.gguf`. |
-| `qwen3-1.7b` | GGUF file expected at `models/qwen3-1.7b.gguf`. |
-| `qwen-coder-cline` | Legacy Ollama personality overlay for Cline-style use. |
+The imported Ollama models are rebuilt with explicit renderer/parser settings,
+deterministic sampling, and larger context windows:
 
-## Cline Defaults
+| Tag | Context | Tools |
+|---|---:|---|
+| `qwen3.5-2b-official:latest` | 64K default; up to 256K selectable | Verified |
+| `qwen3.5-4b-official:latest` | 64K default; up to 128K selectable | Verified configuration |
+| `huihui_ai/qwen3.5-abliterated:2b-agent` | 32K default; up to 128K selectable | Verified |
+| `huihui_ai/qwen3.5-abliterated:4b-agent` | 32K default; up to 64K selectable | Verified configuration |
+| `gemma4-e4b-official:latest` | 16K default; up to 64K selectable | Verified configuration |
+| `qwen3.5-9b-defiant-uncensored:latest` | 16K default; up to 64K selectable | Verified configuration |
 
-`cline-server.sh` uses model-specific context defaults for known local GGUF names:
+Native Ollama `/api/chat` and OpenAI-compatible
+`/v1/chat/completions` both returned structured tool calls in testing.
 
-| Model | Context |
-|---|---:|
-| `qwen2.5-coder-3b` | 32768 |
-| `llama3.2-3b` | 12288 |
-| `qwen3-1.7b` | 12288 |
-| `qwen3-4b` | 8192 |
-| `phi4-mini` | 8192 |
+## Context And Memory
 
-Set Cline's Context Window Size to the value printed by the wrapper or `llama-cline.service`.
+Larger models do not automatically support more usable context. Context memory
+depends on architecture, KV heads, cache type, context length, and whether the
+KV cache is on the GPU.
 
-## Claude Code Compatibility
+Observed profile defaults:
 
-Claude Code sends Anthropic Messages requests that Ollama does not implement
-directly. Use `scripts/ollama/anthropic-proxy.py` through `claude-local`; the
-launcher opens a picker when no model is specified and puts currently loaded
-Ollama models first.
+| Model | Default context | GPU layers |
+|---|---:|---:|
+| Qwen3.5-2B | 128K | all |
+| Qwen3.5-4B | 64K | all |
+| Qwen3.5-9B | 32K | 24 |
+| Gemma 4 E4B | 32K | 30 |
 
-| Model | Works with Claude Code | Notes |
-|---|---|---|
-| `qwen2.5-coder` | Yes, via proxy | Best current local Claude Code default; `qwen2.5-coder:3b` is verified |
-| `llama3.2` | Partial, via proxy | General fallback; weaker at tool use |
-| `phi4-mini` | Partial, via proxy | Compact fallback |
-| `qwen3` | Unreliable | Can spend output budget on reasoning and return empty content |
-| `deepseek-r1` | Poor | Reasoning tags often confuse agent protocols |
-| `hermes3` | Experimental | May emit malformed tool calls |
+These are launch defaults, not fixed agent limits. The running server reports
+the actual context to the agent.
 
-For 4GB VRAM cards, `qwen2.5-coder:3b` is the recommended Claude Code model.
-Run `claude-local` to pick from installed models. See
-[`claude-code.md`](claude-code.md) for full setup.
+## Model Storage
 
-## Tool Use
+Store GGUF files in `$LLM_MODELS_DIR` and keep the repository lightweight.
+Ollama should link to the same canonical files where practical.
 
-Cline and other agent loops need models/templates that can follow tool-call instructions reliably. If a model repeatedly emits malformed XML tool calls, use the guardrails in `.clinerules` and [`cline.md`](cline.md), or switch to a more code/tool-tuned model.
+```bash
+llm models
+llm models --sort name
+```
 
-## Updating This File
+Size sorting is automatic and smallest-first.
 
-After changing your local model set, update this catalog to describe what each model is for. Put hardware-specific advice in [`hardware-matching.md`](hardware-matching.md), and do not commit model weights.
+## Hermes Prompt Budget
+
+Hermes tools and system instructions are a meaningful fraction of context for
+small models. The measured default is roughly 13K input tokens before project
+content. Skills are loaded progressively, but preloading large skills costs
+the full skill size.
+
+For 2B coding:
+
+```bash
+hermes-local -t terminal,file,skills,todo,clarify
+```
+
+Keep `skills` enabled for on-demand access and avoid preloading large skill
+files unless the task needs them.

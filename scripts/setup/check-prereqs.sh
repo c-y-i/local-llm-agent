@@ -5,12 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../common/env.sh
 source "${SCRIPT_DIR}/../common/env.sh"
 
+REQUIRED_MISSING=0
+
 check_cmd() {
   local name="$1"
   if command -v "$name" >/dev/null 2>&1; then
     printf 'ok   %-18s %s\n' "$name" "$(command -v "$name")"
   else
     printf 'miss %-18s not found\n' "$name"
+    REQUIRED_MISSING=$((REQUIRED_MISSING + 1))
   fi
 }
 
@@ -43,8 +46,8 @@ echo "commands"
 for cmd in git cmake make cc c++ curl python3; do
   check_cmd "$cmd"
 done
-check_cmd ollama
-check_cmd systemctl
+check_cmd_optional ollama
+check_cmd_optional systemctl
 check_cmd_optional nvcc
 check_cmd_optional nvidia-smi
 check_cmd_optional codex
@@ -68,3 +71,9 @@ for dir in "$LOCAL_LLM_AGENT_ROOT" "$LLM_ROOT" "$LLAMA_CPP_ROOT" "$OLLAMA_ROOT" 
     echo "miss $dir"
   fi
 done
+
+if (( REQUIRED_MISSING > 0 )); then
+  echo
+  echo "${REQUIRED_MISSING} required command(s) are missing." >&2
+  exit 1
+fi

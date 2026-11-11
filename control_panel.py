@@ -24,7 +24,7 @@ DEFAULT_PULLABLE_MODELS = (
     {"name": "qwen2.5-coder:1.5b", "size_gb": 0.9, "desc": "small coding"},
     {"name": "qwen2.5-coder:3b",  "size_gb": 1.9,  "desc": "coding"},
     {"name": "qwen3:4b",          "size_gb": 2.6,  "desc": "general chat"},
-    {"name": "qwen2.5-coder:7b",  "size_gb": 4.7,  "desc": "coding / Cline"},
+    {"name": "qwen2.5-coder:7b",  "size_gb": 4.7,  "desc": "coding / local agents"},
     {"name": "qwen3:8b",          "size_gb": 5.2,  "desc": "general chat"},
     {"name": "qwen2.5-coder:14b", "size_gb": 9.0,  "desc": "strong coding"},
     {"name": "qwen2.5-coder:32b", "size_gb": 19.0, "desc": "high-end coding"},

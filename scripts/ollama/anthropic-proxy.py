@@ -24,7 +24,10 @@ from socketserver import ThreadingMixIn
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-OLLAMA_BASE = os.getenv("OLLAMA_BASE", "http://localhost:11434")
+OPENAI_BASE = os.getenv(
+    "LOCAL_OPENAI_BASE",
+    os.getenv("OLLAMA_BASE", "http://localhost:11434"),
+).rstrip("/")
 ENABLE_INTENT_ROUTER = os.getenv("CLAUDE_PROXY_ENABLE_INTENT_ROUTER", "1") not in {"0", "false", "False", "no"}
 LOCAL_GUARDRAIL = """Local Claude Code model rules:
 - Use tools only when the user asks you to inspect files, edit files, run commands, or gather workspace state.
@@ -618,7 +621,7 @@ class AnthropicProxy(BaseHTTPRequestHandler):
         data = json.dumps(openai_body).encode()
 
         req = urllib.request.Request(
-            f"{OLLAMA_BASE}/v1/chat/completions",
+            f"{OPENAI_BASE}/v1/chat/completions",
             data=data,
             headers={"Content-Type": "application/json"},
             method="POST",

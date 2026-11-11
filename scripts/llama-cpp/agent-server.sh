@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start llama-server with Cline-friendly settings.
+# Start llama-server with local-agent-friendly settings.
 # Uses model-specific context defaults because KV-cache size varies a lot by
 # architecture, context length, quantization, and hardware tier. Does NOT inject
-# a SYSTEM prompt — Cline sends its own elaborate system prompt with tool
-# descriptions, so adding one here would conflict.
+# a SYSTEM prompt because Claude Code, Codex, and Hermes each send their own
+# instructions and tool schemas.
 #
 # Usage:
-#   cline-server.sh                              # default model (qwen2.5-coder-3b)
-#   cline-server.sh qwen3-4b                     # different shared GGUF
-#   cline-server.sh qwen2.5-coder-3b 8081        # custom port
+#   agent-server.sh                              # default model
+#   agent-server.sh qwen3-4b                     # different shared GGUF
+#   agent-server.sh qwen2.5-coder-3b 8081        # custom port
 #
 # Env overrides:
 #   LOCAL_LLM_AGENT_ROOT  repo root
@@ -22,6 +22,9 @@ set -euo pipefail
 #   N_PARALLEL        1
 #   METRICS           1
 #   JINJA             1
+#   FLASH_ATTN        auto
+#   KV_CACHE_TYPE     q8_0
+#   KV_OFFLOAD        1
 #   TEMP              0.2
 #   TOP_P             0.9
 #   REPEAT_PENALTY    1.1
@@ -36,6 +39,9 @@ N_GPU_LAYERS="${N_GPU_LAYERS:-999}"
 N_PARALLEL="${N_PARALLEL:-1}"
 METRICS="${METRICS:-1}"
 JINJA="${JINJA:-1}"
+FLASH_ATTN="${FLASH_ATTN:-auto}"
+KV_CACHE_TYPE="${KV_CACHE_TYPE:-q8_0}"
+KV_OFFLOAD="${KV_OFFLOAD:-1}"
 TEMP="${TEMP:-0.2}"
 TOP_P="${TOP_P:-0.9}"
 REPEAT_PENALTY="${REPEAT_PENALTY:-1.1}"
@@ -93,27 +99,21 @@ if command -v ollama >/dev/null 2>&1; then
   fi
 fi
 
-echo "Cline ⇄ llama-server"
+echo "Local agents ⇄ llama-server"
 echo "  Model       : $model"
 echo "  Endpoint    : http://${HOST}:${port}/v1"
 echo "  GPU layers  : $N_GPU_LAYERS"
 echo "  Context     : $N_CTX"
 echo "  Parallel    : $N_PARALLEL"
 echo "  Metrics     : $METRICS"
-echo "  Temperature : $TEMP (server default; Cline can override per-call)"
+echo "  Temperature : $TEMP (agent clients may override per call)"
 echo "  Top-p       : $TOP_P"
 echo "  Repeat pen. : $REPEAT_PENALTY"
 echo
-echo "In Cline (VS Code):"
-echo "  Provider : OpenAI Compatible"
-echo "  Base URL : http://${HOST}:${port}/v1"
-echo "  API Key  : 114514"
-echo "  Model ID : ${name}      (informational; llama-server only serves the loaded model)"
-echo "  Context  : ${N_CTX}      (set Cline Context Window Size to match)"
-echo
-echo "Claude Code:"
-echo "  ANTHROPIC_BASE_URL=http://${HOST}:${port}"
-echo "  ./scripts/claude/claude-local.sh --backend llama-cpp --model ${name}"
+echo "Agents:"
+echo "  claude-local"
+echo "  codex-local"
+echo "  hermes-local"
 echo
 
 args=(
@@ -135,6 +135,11 @@ if [[ "$METRICS" != "0" && "$METRICS" != "false" ]]; then
 fi
 if [[ "$JINJA" != "0" && "$JINJA" != "false" ]]; then
   args+=(--jinja)
+fi
+args+=(--flash-attn "$FLASH_ATTN")
+args+=(--cache-type-k "$KV_CACHE_TYPE" --cache-type-v "$KV_CACHE_TYPE")
+if [[ "$KV_OFFLOAD" == "0" || "$KV_OFFLOAD" == "false" ]]; then
+  args+=(--no-kv-offload)
 fi
 [[ -n "${LLAMA_SERVER_API_KEY:-}" ]] && args+=(--api-key "$LLAMA_SERVER_API_KEY")
 
