@@ -1,0 +1,864 @@
+#!/usr/bin/env python3
+"""One CLI for the local-llm-agent repository."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from types import SimpleNamespace
+
+from llm_paths import ENV_EXAMPLE, ENV_FILE, REPO_ROOT, ensure_directories, export_paths, get_paths
+
+VERSION = "0.1.0"
+BACKENDS = {
+    "llama-cpp": ("LLAMA_CPP_BASE_URL", "http://127.0.0.1:8080"),
+    "vllm": ("VLLM_BASE_URL", "http://127.0.0.1:8000"),
+    "strata": ("STRATA_BASE_URL", "http://127.0.0.1:8082"),
+    "ollama": ("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+}
+AGENTS = {
+    "claude": "Claude Code",
+    "codex": "Codex CLI",
+    "hermes": "Hermes Agent",
+}
+
+
+def _run(args: list[str], env: dict[str, str] | None = None) -> int:
+    command = [str(arg) for arg in args]
+    print("+ " + " ".join(command), file=sys.stderr)
+    try:
+        result = subprocess.run(command, cwd=REPO_ROOT, env=env)
+    except KeyboardInterrupt:
+        return 130
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 127
+    return result.returncode
+
+
+def _configured_env() -> dict[str, str]:
+    paths = ensure_directories()
+    export_paths(paths)
+    env = os.environ.copy()
+    if not shutil.which("vllm", path=env.get("PATH")):
+        vllm_bin = paths["venvs"] / "vllm" / "bin" / "vllm"
+        if vllm_bin.is_file():
+            env["VLLM_BIN"] = str(vllm_bin)
+    if not shutil.which("strata", path=env.get("PATH")):
+        strata_bin = Path.home() / ".local" / "bin" / "strata"
+        if strata_bin.is_file():
+            env["STRATA_BIN"] = str(strata_bin)
+    llama_server = paths["llama_cpp"] / "build" / "bin" / "llama-server"
+    if llama_server.is_file():
+        env["LLAMA_SERVER_BIN"] = str(llama_server)
+    return env
+
+
+def _backend_status(env: dict[str, str]) -> dict[str, dict]:
+    result = {}
+    for backend, (env_name, default_url) in BACKENDS.items():
+        url = env.get(env_name, default_url).rstrip("/")
+        entry = {"url": url, "reachable": False, "models": []}
+        try:
+            with urllib.request.urlopen(f"{url}/v1/models", timeout=1.5) as response:
+                body = json.loads(response.read())
+            entry["reachable"] = True
+            entry["models"] = [
+                item["id"]
+                for item in body.get("data", [])
+                if isinstance(item, dict) and item.get("id")
+            ]
+        except Exception:
+            pass
+        result[backend] = entry
+    return result
+
+
+def _select_backend(env: dict[str, str], requested: str | None) -> str:
+    if requested:
+        return requested
+    status = _backend_status(env)
+    for backend in ("llama-cpp", "vllm", "strata", "ollama"):
+        if status[backend]["reachable"]:
+            return backend
+    raise RuntimeError("no local backend is reachable")
+
+
+def _backend_connection(env: dict[str, str], backend: str) -> tuple[str, str]:
+    env_name, default_url = BACKENDS[backend]
+    base_url = env.get(env_name, default_url).rstrip("/")
+    if base_url.endswith("/v1"):
+        base_url = base_url[:-3].rstrip("/")
+    token = env.get(
+        {
+            "llama-cpp": "LLAMA_CPP_API_KEY",
+            "vllm": "VLLM_API_KEY",
+            "strata": "STRATA_API_KEY",
+            "ollama": "OLLAMA_API_KEY",
+        }[backend],
+        "local",
+    )
+    return base_url, token
+
+
+def _model_from_backend(env: dict[str, str], backend: str) -> str:
+    status = _backend_status(env)
+    models = status[backend]["models"]
+    if len(models) == 1:
+        return models[0]
+    if not models:
+        raise RuntimeError(f"{backend} reported no models")
+    raise RuntimeError(
+        f"{backend} reported multiple models; select one with --model: {', '.join(models)}"
+    )
+
+
+def _is_interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _prompt_choice(
+    title: str,
+    choices: list[tuple[str, str]],
+    *,
+    default: int = 1,
+    allow_manual: bool = False,
+) -> str | None:
+    if not choices and not allow_manual:
+        return None
+    if not _is_interactive():
+        raise RuntimeError(f"{title}: selection requires an interactive terminal")
+
+    print(f"\n{title}")
+    for index, (value, label) in enumerate(choices, 1):
+        marker = " (default)" if index == default else ""
+        print(f"  {index}. {label}{marker}")
+    if allow_manual:
+        print("  0. Enter a value manually")
+    print("  q. Cancel")
+
+    while True:
+        raw = input(f"Select [{default}]: ").strip()
+        if raw.lower() in {"q", "quit"}:
+            return None
+        if not raw:
+            return choices[default - 1][0]
+        if allow_manual and raw == "0":
+            value = input("Value: ").strip()
+            return value or None
+        if raw.isdigit() and 1 <= int(raw) <= len(choices):
+            return choices[int(raw) - 1][0]
+        print("Invalid selection.")
+
+
+def _backend_installed(backend: str, env: dict[str, str]) -> bool:
+    if backend == "llama-cpp":
+        binary = env.get("LLAMA_SERVER_BIN", "")
+        return bool(binary and Path(binary).is_file())
+    command = {
+        "vllm": env.get("VLLM_BIN", "vllm"),
+        "strata": env.get("STRATA_BIN", "strata"),
+        "ollama": env.get("OLLAMA_BIN", "ollama"),
+    }[backend]
+    path = shutil.which(command, path=env.get("PATH"))
+    return bool(path or Path(command).is_file())
+
+
+def _hf_cached_models(paths: dict[str, Path]) -> list[str]:
+    hub = paths["hf_home"] / "hub"
+    if not hub.is_dir():
+        return []
+    models = []
+    for entry in hub.glob("models--*"):
+        if not entry.is_dir():
+            continue
+        model_id = entry.name.removeprefix("models--").replace("--", "/", 1)
+        if model_id:
+            models.append(model_id)
+    return sorted(set(models))
+
+
+def _discover_models(
+    backend: str, env: dict[str, str], paths: dict[str, Path]
+) -> list[str]:
+    if backend == "llama-cpp":
+        return sorted(item.stem for item in paths["models"].glob("*.gguf"))
+    if backend == "vllm":
+        return _hf_cached_models(paths)
+    if backend == "strata":
+        models = []
+        for item in paths["strata_models"].iterdir():
+            if item.is_dir() or item.suffix == ".gguf":
+                models.append(item.stem if item.is_file() else item.name)
+        return sorted(set(models))
+
+    status = _backend_status(env)["ollama"]
+    if status["reachable"] and status["models"]:
+        return status["models"]
+    ollama = shutil.which(env.get("OLLAMA_BIN", "ollama"), path=env.get("PATH"))
+    if not ollama:
+        return []
+    try:
+        result = subprocess.run(
+            [ollama, "list"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=5,
+        )
+    except Exception:
+        return []
+    return [
+        line.split()[0]
+        for line in result.stdout.splitlines()[1:]
+        if line.strip() and not line.lower().startswith("name")
+    ]
+
+
+def _choose_backend(env: dict[str, str], requested: str | None) -> str:
+    if requested:
+        return requested
+    paths = get_paths()
+    choices = []
+    for backend in BACKENDS:
+        models = _discover_models(backend, env, paths)
+        installed = _backend_installed(backend, env)
+        state = "installed" if installed else "not installed"
+        choices.append(
+            (backend, f"{backend:10s} {state:14s} {len(models)} known model(s)")
+        )
+    preferred = [
+        index
+        for index, (backend, _label) in enumerate(choices, 1)
+        if _backend_installed(backend, env)
+        and _discover_models(backend, env, paths)
+    ]
+    installed = [
+        index
+        for index, (backend, _label) in enumerate(choices, 1)
+        if _backend_installed(backend, env)
+    ]
+    default = (preferred or installed or [1])[0]
+    selected = _prompt_choice(
+        "Choose an inference backend", choices, default=default
+    )
+    if selected is None:
+        raise RuntimeError("cancelled")
+    return selected
+
+
+def _choose_model(
+    backend: str,
+    env: dict[str, str],
+    paths: dict[str, Path],
+    requested: str | None,
+) -> str:
+    if requested:
+        return requested
+    models = _discover_models(backend, env, paths)
+    if models:
+        choices = [(model, model) for model in models]
+        selected = _prompt_choice(
+            f"Choose a model for {backend}", choices, allow_manual=True
+        )
+        if selected is None:
+            raise RuntimeError("cancelled")
+        return selected
+    if backend == "llama-cpp":
+        raise RuntimeError(
+            f"no GGUF models were found in {paths['models']}; put a model there or set LLM_MODELS_DIR"
+        )
+    if backend == "vllm":
+        raise RuntimeError(
+            f"no cached Hugging Face models were found in {paths['hf_home']}; "
+            "run `llm serve vllm <model-id>` once to download one"
+        )
+    if backend == "strata":
+        raise RuntimeError(
+            f"no Strata models were found in {paths['strata_models']}; "
+            "run `llm serve strata <model> --family <family>` once to install one"
+        )
+    raise RuntimeError(
+        "Ollama has no installed models; use the Ollama CLI to pull one first"
+    )
+
+
+def _running_backends(env: dict[str, str]) -> list[str]:
+    return [
+        backend
+        for backend, status in _backend_status(env).items()
+        if status["reachable"]
+    ]
+
+
+def _codex_command(
+    backend: str, base_url: str, model: str, context: int, extra: list[str]
+) -> list[str]:
+    if backend == "ollama":
+        return [
+            "codex",
+            "--oss",
+            "--local-provider",
+            "ollama",
+            "--model",
+            model,
+            *extra,
+        ]
+
+    provider = f"local-{backend}"
+    command = [
+        "codex",
+        "-c",
+        f'model_provider="{provider}"',
+        "-c",
+        f'model_providers.{provider}.name="Local {backend}"',
+        "-c",
+        f'model_providers.{provider}.base_url="{base_url}/v1"',
+        "-c",
+        f'model_providers.{provider}.wire_api="responses"',
+        "-c",
+        f'model_providers.{provider}.env_key="LOCAL_LLM_API_KEY"',
+        "-c",
+        f"model_providers.{provider}.request_max_retries=0",
+        "-c",
+        f"model_context_window={context}",
+        "--model",
+        model,
+    ]
+    command.extend(extra)
+    return command
+
+
+def codex_environment(
+    env: dict[str, str], backend: str, base_url: str, token: str, model: str
+) -> dict[str, str]:
+    result = env.copy()
+    result["LOCAL_LLM_API_KEY"] = token
+    result["OPENAI_API_KEY"] = token
+    if backend == "ollama":
+        result["OLLAMA_HOST"] = base_url.removeprefix("http://").removeprefix("https://")
+    return result
+
+
+def _hermes_command(
+    backend: str, base_url: str, model: str, extra: list[str]
+) -> list[str]:
+    return [
+        "hermes",
+        "chat",
+        "--provider",
+        "main",
+        "--model",
+        model,
+        *extra,
+    ]
+
+
+def hermes_environment(
+    env: dict[str, str], backend: str, base_url: str, token: str
+) -> dict[str, str]:
+    result = env.copy()
+    result["OPENAI_BASE_URL"] = f"{base_url}/v1"
+    result["OPENAI_API_KEY"] = token
+    result["HERMES_STREAM_READ_TIMEOUT"] = env.get(
+        "HERMES_STREAM_READ_TIMEOUT", "1800"
+    )
+    if backend == "ollama":
+        result["OLLAMA_HOST"] = base_url.removeprefix("http://").removeprefix("https://")
+    return result
+
+
+def cmd_paths(args: argparse.Namespace) -> int:
+    paths = ensure_directories()
+    if args.json:
+        print(json.dumps({key: str(value) for key, value in paths.items()}, indent=2))
+        return 0
+    print(f"Repository : {REPO_ROOT}")
+    print(f"Config     : {ENV_FILE}")
+    for key, value in paths.items():
+        print(f"{key:14s}: {value}")
+    return 0
+
+
+def cmd_config(args: argparse.Namespace) -> int:
+    if args.init:
+        if ENV_FILE.exists() and not args.force:
+            print(f"{ENV_FILE} already exists; use --force to replace it.")
+            return 0
+        shutil.copyfile(ENV_EXAMPLE, ENV_FILE)
+        print(f"Created {ENV_FILE}")
+    print(ENV_FILE.read_text() if ENV_FILE.exists() else "No .env file configured.")
+    return 0
+
+
+def cmd_doctor(_args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    print(f"llm {VERSION}")
+    print(f"LLM_ROOT: {paths['llm_root']}")
+    writable = os.access(paths["llm_root"], os.W_OK)
+    print(f"{'ok' if writable else 'FAIL':4s}  external data root is writable")
+
+    for command in (
+        "python3",
+        "git",
+        "cmake",
+        "nvidia-smi",
+        "nvcc",
+        "codex",
+        "claude",
+        "hermes",
+        "ollama",
+        "vllm",
+        "strata",
+    ):
+        found = shutil.which(command, path=env.get("PATH"))
+        print(f"{'ok' if found else 'miss':4s}  {command:12s} {found or ''}".rstrip())
+
+    print("\nBackends")
+    for backend, status in _backend_status(env).items():
+        state = "online" if status["reachable"] else "offline"
+        models = ", ".join(status["models"]) if status["models"] else "-"
+        print(f"{state:7s} {backend:10s} {status['url']}  models={models}")
+    return 0 if writable else 1
+
+
+def cmd_models(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    backends = [args.backend] if args.backend else list(BACKENDS)
+    discovered = {
+        backend: _discover_models(backend, env, paths) for backend in backends
+    }
+    if args.json:
+        print(json.dumps(discovered, indent=2))
+        return 0
+    for backend, models in discovered.items():
+        print(f"\n{backend}")
+        if not models:
+            print("  no installed models")
+            continue
+        for model in models:
+            print(f"  {model}")
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    status = _backend_status(env)
+    if args.json:
+        print(json.dumps(status, indent=2))
+        return 0
+    for backend, entry in status.items():
+        state = "online" if entry["reachable"] else "offline"
+        models = ", ".join(entry["models"]) if entry["models"] else "-"
+        print(f"{state:7s} {backend:10s} {entry['url']}  {models}")
+    return 0
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    try:
+        backend = _choose_backend(env, args.backend)
+        if not _backend_installed(backend, env):
+            hints = {
+                "llama-cpp": "llm build llama-cpp",
+                "vllm": "llm install vllm",
+                "ollama": "llm install ollama",
+                "strata": "install Strata from https://github.com/Niko1221/Strata",
+            }
+            raise RuntimeError(
+                f"{backend} is not installed; run: {hints[backend]}"
+            )
+        model = None if backend == "ollama" else _choose_model(
+            backend, env, paths, args.model
+        )
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.port:
+        env[f"{backend.upper().replace('-', '_')}_PORT"] = str(args.port)
+    if args.context:
+        env["N_CTX"] = str(args.context)
+
+    print(f"Starting {backend}" + (f" with {model}" if model else ""))
+    if backend == "llama-cpp":
+        script = REPO_ROOT / "scripts/llama-cpp/claude-server.sh"
+        command = [script, model]
+        if args.port:
+            command.append(str(args.port))
+        return _run(command, env)
+    if backend == "vllm":
+        command = [REPO_ROOT / "scripts/vllm/serve.sh", model]
+        if args.port:
+            command.append(str(args.port))
+        return _run(command, env)
+    if backend == "strata":
+        env["STRATA_FAMILY"] = args.family
+        command = [REPO_ROOT / "scripts/strata/serve.sh", model]
+        if args.port:
+            command.append(str(args.port))
+        return _run(command, env)
+    return _run([REPO_ROOT / "scripts/ollama/serve.sh"], env)
+
+
+def _launch_claude(
+    env: dict[str, str], backend: str | None, model: str | None, extra: list[str]
+) -> int:
+    command = [REPO_ROOT / "scripts/claude/claude-local.sh"]
+    if backend:
+        command += ["--backend", backend]
+    if model:
+        command += ["--model", model]
+    command += extra
+    return _run(command, env)
+
+
+def cmd_claude(args: argparse.Namespace) -> int:
+    return _launch_claude(
+        _configured_env(), args.backend, args.model, list(args.claude_args)
+    )
+
+
+def _launch_codex(
+    env: dict[str, str],
+    backend: str | None,
+    model: str | None,
+    context: int,
+    extra: list[str],
+) -> int:
+    try:
+        backend = _select_backend(env, backend)
+        base_url, token = _backend_connection(env, backend)
+        model = model or _model_from_backend(env, backend)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    codex_env = codex_environment(env, backend, base_url, token, model)
+    command = _codex_command(backend, base_url, model, context, extra)
+    return _run(command, codex_env)
+
+
+def cmd_codex(args: argparse.Namespace) -> int:
+    return _launch_codex(
+        _configured_env(),
+        args.backend,
+        args.model,
+        args.context,
+        list(args.agent_args),
+    )
+
+
+def _launch_hermes(
+    env: dict[str, str],
+    backend: str | None,
+    model: str | None,
+    extra: list[str],
+) -> int:
+    try:
+        backend = _select_backend(env, backend)
+        base_url, token = _backend_connection(env, backend)
+        model = model or _model_from_backend(env, backend)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    hermes_env = hermes_environment(env, backend, base_url, token)
+    command = _hermes_command(backend, base_url, model, extra)
+    return _run(command, hermes_env)
+
+
+def cmd_hermes(args: argparse.Namespace) -> int:
+    return _launch_hermes(
+        _configured_env(), args.backend, args.model, list(args.agent_args)
+    )
+
+
+def cmd_agent(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    running = _running_backends(env)
+    if not running:
+        print("No local model server is running.")
+        print("Start one first with: llm start")
+        return 2
+
+    try:
+        backend = args.backend
+        if not backend:
+            if len(running) == 1:
+                backend = running[0]
+            else:
+                backend = _prompt_choice(
+                    "Choose the running backend",
+                    [(name, name) for name in running],
+                )
+                if backend is None:
+                    return 2
+
+        model = args.model
+        if not model:
+            status = _backend_status(env)[backend]
+            models = status["models"]
+            if len(models) == 1:
+                model = models[0]
+            elif models:
+                model = _prompt_choice(
+                    f"Choose a model served by {backend}",
+                    [(name, name) for name in models],
+                )
+                if model is None:
+                    return 2
+            else:
+                print(f"{backend} did not report a model ID.", file=sys.stderr)
+                return 2
+
+        agent = args.agent
+        if not agent:
+            choices = []
+            for name, label in AGENTS.items():
+                executable = {"claude": "claude", "codex": "codex", "hermes": "hermes"}[name]
+                state = "installed" if shutil.which(executable, path=env.get("PATH")) else "not installed"
+                choices.append((name, f"{label:16s} {state}"))
+            agent = _prompt_choice("Choose an agent", choices)
+            if agent is None:
+                return 2
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Launching {AGENTS[agent]} with {backend}/{model}")
+    if agent == "claude":
+        return _launch_claude(env, backend, model, list(args.agent_args))
+    if agent == "codex":
+        return _launch_codex(env, backend, model, 32768, list(args.agent_args))
+    return _launch_hermes(env, backend, model, list(args.agent_args))
+
+
+def cmd_build(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    if args.target == "llama-cpp":
+        command = [REPO_ROOT / "scripts/setup/build-llama-cpp.sh"]
+        if args.dry_run:
+            command.append("--dry-run")
+        if args.cuda is not None:
+            env["LLAMA_CUDA"] = args.cuda
+        return _run(command, env)
+    return 2
+
+
+def cmd_install(args: argparse.Namespace) -> int:
+    env = _configured_env()
+    paths = get_paths()
+    if args.target == "vllm":
+        venv = paths["venvs"] / "vllm"
+        if not venv.exists():
+            code = _run([sys.executable, "-m", "venv", venv], env)
+            if code:
+                return code
+        code = _run([venv / "bin" / "python", "-m", "pip", "install", "--upgrade", "pip"], env)
+        if code:
+            return code
+        return _run([venv / "bin" / "python", "-m", "pip", "install", "vllm"], env)
+    if args.target == "ollama":
+        return _run([REPO_ROOT / "scripts/setup/install-ollama.sh"], env)
+    if args.target == "strata":
+        print("Install Strata from https://github.com/Niko1221/Strata")
+        print("Then run: llm doctor")
+        return 0
+    if args.target == "hermes":
+        print("Install Hermes Agent from https://github.com/NousResearch/hermes-agent")
+        print("Then run: llm doctor")
+        return 0
+    return 2
+
+
+def cmd_setup(_args: argparse.Namespace) -> int:
+    target = _prompt_choice(
+        "Install or build",
+        [
+            ("llama-cpp", "Build llama.cpp"),
+            ("vllm", "Install vLLM"),
+            ("ollama", "Install Ollama"),
+            ("strata", "Show Strata installation instructions"),
+        ],
+    )
+    if target is None:
+        return 2
+    if target == "llama-cpp":
+        return cmd_build(
+            SimpleNamespace(target="llama-cpp", cuda=None, dry_run=False)
+        )
+    return cmd_install(SimpleNamespace(target=target))
+
+
+def cmd_menu(_args: argparse.Namespace) -> int:
+    if not _is_interactive():
+        print("Run `llm --help` for non-interactive commands.")
+        return 2
+
+    env = _configured_env()
+    running = _running_backends(env)
+    print("\nLocal LLM")
+    if running:
+        print("Running: " + ", ".join(running))
+    else:
+        print("Running: no model server")
+    choice = _prompt_choice(
+        "What do you want to do?",
+        [
+            ("start", "Start a model"),
+            ("agent", "Launch an agent"),
+            ("setup", "Install or build a backend"),
+            ("status", "Show backend status"),
+            ("models", "List installed models"),
+            ("doctor", "Check the installation"),
+            ("paths", "Show storage paths"),
+            ("quit", "Quit"),
+        ],
+        default=1,
+    )
+    if choice in (None, "quit"):
+        return 0
+    if choice == "start":
+        return cmd_start(
+            SimpleNamespace(
+                backend=None,
+                model=None,
+                port=None,
+                context=None,
+                family="qwen",
+            )
+        )
+    if choice == "agent":
+        return cmd_agent(
+            SimpleNamespace(
+                agent=None,
+                backend=None,
+                model=None,
+                agent_args=[],
+            )
+        )
+    if choice == "setup":
+        return cmd_setup(SimpleNamespace())
+    if choice == "status":
+        return cmd_status(SimpleNamespace(json=False))
+    if choice == "models":
+        return cmd_models(SimpleNamespace(json=False, backend=None))
+    if choice == "doctor":
+        return cmd_doctor(SimpleNamespace())
+    return cmd_paths(SimpleNamespace(json=False))
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="llm",
+        description="Manage local backends and launch Claude Code, Codex CLI, or Hermes Agent.",
+        epilog=(
+            "Concepts: a backend runs a model; a model is the installed weights; "
+            "an agent is Claude Code, Codex CLI, or Hermes Agent."
+        ),
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    sub = parser.add_subparsers(dest="command")
+
+    paths = sub.add_parser("paths", help="show external storage paths")
+    paths.add_argument("--json", action="store_true")
+    paths.set_defaults(func=cmd_paths)
+
+    config = sub.add_parser("config", help="show or initialize .env")
+    config.add_argument("--init", action="store_true", help="create .env from .env.example")
+    config.add_argument("--force", action="store_true")
+    config.set_defaults(func=cmd_config)
+
+    doctor = sub.add_parser("doctor", help="check commands, paths, and backends")
+    doctor.set_defaults(func=cmd_doctor)
+
+    setup = sub.add_parser("setup", help="install or build a backend interactively")
+    setup.set_defaults(func=cmd_setup)
+
+    models = sub.add_parser("models", help="list installed models")
+    models.add_argument("--json", action="store_true")
+    models.add_argument(
+        "--backend", choices=("llama-cpp", "vllm", "strata", "ollama")
+    )
+    models.set_defaults(func=cmd_models)
+
+    status = sub.add_parser("status", help="probe compatible backends")
+    status.add_argument("--json", action="store_true")
+    status.set_defaults(func=cmd_status)
+
+    start = sub.add_parser(
+        "start",
+        aliases=["serve"],
+        help="choose and start a model backend",
+    )
+    start.add_argument(
+        "backend", nargs="?", choices=("llama-cpp", "vllm", "strata", "ollama")
+    )
+    start.add_argument("model", nargs="?")
+    start.add_argument("--port", type=int)
+    start.add_argument("--context", type=int, help="llama.cpp context size")
+    start.add_argument("--family", default="qwen", help="Strata model family")
+    start.set_defaults(func=cmd_start)
+
+    agent = sub.add_parser(
+        "agent",
+        help="choose an agent for the running model",
+    )
+    agent.add_argument(
+        "agent", nargs="?", choices=("claude", "codex", "hermes")
+    )
+    agent.add_argument(
+        "--backend", choices=("llama-cpp", "vllm", "strata", "ollama")
+    )
+    agent.add_argument("--model")
+    agent.add_argument("agent_args", nargs=argparse.REMAINDER)
+    agent.set_defaults(func=cmd_agent)
+
+    claude = sub.add_parser("claude", help="launch Claude Code against a local backend")
+    claude.add_argument("--backend", choices=("llama-cpp", "vllm", "strata", "ollama"))
+    claude.add_argument("--model")
+    claude.add_argument("claude_args", nargs=argparse.REMAINDER)
+    claude.set_defaults(func=cmd_claude)
+
+    codex = sub.add_parser("codex", help="launch Codex CLI against a local backend")
+    codex.add_argument("--backend", choices=("llama-cpp", "vllm", "strata", "ollama"))
+    codex.add_argument("--model")
+    codex.add_argument("--context", type=int, default=32768)
+    codex.add_argument("agent_args", nargs=argparse.REMAINDER)
+    codex.set_defaults(func=cmd_codex)
+
+    hermes = sub.add_parser("hermes", help="launch Hermes Agent against a local backend")
+    hermes.add_argument("--backend", choices=("llama-cpp", "vllm", "strata", "ollama"))
+    hermes.add_argument("--model")
+    hermes.add_argument("agent_args", nargs=argparse.REMAINDER)
+    hermes.set_defaults(func=cmd_hermes)
+
+    build = sub.add_parser("build", help="build a local inference engine")
+    build.add_argument("target", choices=("llama-cpp",))
+    build.add_argument("--cuda", choices=("auto", "ON", "OFF"), default=None)
+    build.add_argument("--dry-run", action="store_true")
+    build.set_defaults(func=cmd_build)
+
+    install = sub.add_parser("install", help="install an inference backend")
+    install.add_argument("target", choices=("vllm", "ollama", "strata", "hermes"))
+    install.set_defaults(func=cmd_install)
+    parser.set_defaults(func=cmd_menu)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

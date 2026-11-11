@@ -150,6 +150,28 @@ class TestGetOllama(unittest.TestCase):
         self.assertEqual(result["running"], [])
 
 
+class TestGetBackends(unittest.TestCase):
+    def _make_resp(self, body: bytes):
+        response = MagicMock()
+        response.__enter__ = MagicMock(return_value=response)
+        response.__exit__ = MagicMock(return_value=False)
+        response.read.return_value = body
+        return response
+
+    @patch("control_panel.urllib.request.urlopen")
+    def test_discovers_models_from_openai_compatible_backends(self, mock_open):
+        mock_open.side_effect = [
+            self._make_resp(b'{"data":[{"id":"local-model"}]}'),
+            Exception("offline"),
+            self._make_resp(b'{"data":[]}'),
+        ]
+        result = control_panel.get_backends()
+        self.assertTrue(result["llama.cpp"]["reachable"])
+        self.assertEqual(result["llama.cpp"]["models"], ["local-model"])
+        self.assertFalse(result["vllm"]["reachable"])
+        self.assertTrue(result["strata"]["reachable"])
+
+
 class TestGetSystem(unittest.TestCase):
     MEMINFO = (
         "MemTotal:       16384000 kB\n"
@@ -252,6 +274,7 @@ class TestGetStorage(unittest.TestCase):
             get_gpu=lambda: {"available": False},
             get_system=lambda: {"ram": {"available": False}, "cpu": {"available": False}},
             get_ollama=lambda: {"reachable": False, "models": [], "running": []},
+            get_backends=lambda: {},
             get_storage=lambda: {"/ (root)": {"available": True, "total_bytes": 1, "used_bytes": 1}},
         ):
             result = control_panel.build_status()

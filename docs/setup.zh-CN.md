@@ -2,13 +2,22 @@
 
 [English](setup.md) | 简体中文
 
-本项目是面向本地化部署的 LLM agent 工作区，支持本机部署和便携部署两种模式。两种模式共用同一套基础目录结构。
+本项目是面向本地化部署的 LLM agent 工作区，支持本机部署和便携部署两种模式。
+Git 仓库只保存代码与文档；模型、引擎、缓存、虚拟环境和运行数据统一放在
+`LLM_ROOT` 下。
 
 ```text
-<parent>/
-  local-llm-agent/
-  llama-cpp/
-  Ollama/
+~/LLM/                        # LLM_ROOT
+  models/
+    strata/
+  ollama/
+  llama.cpp/
+  huggingface/
+  strata/
+  venvs/
+  run/
+
+~/Projects/local-llm-agent/   # 本仓库
 ```
 
 ## 引导式安装
@@ -19,6 +28,13 @@
 
 ```bash
 ./scripts/setup/check-prereqs.sh
+```
+
+安装 CLI：
+
+```bash
+./scripts/setup/install-llm.sh
+llm doctor
 ```
 
 构建 llama.cpp：
@@ -80,10 +96,16 @@ portable-ollama serve
 | 变量 | 默认值 |
 |---|---|
 | `LOCAL_LLM_AGENT_ROOT` | 本仓库根目录 |
-| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
-| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
+| `LLM_ROOT` | `$HOME/LLM` |
+| `LLAMA_CPP_ROOT` | `$LLM_ROOT/llama.cpp` |
+| `OLLAMA_ROOT` | `$LLM_ROOT/ollama` |
 | `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
-| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
+| `LLM_MODELS_DIR` | `$LLM_ROOT/models` |
+| `HF_HOME` | `$LLM_ROOT/huggingface` |
+| `STRATA_HOME` | `$LLM_ROOT/strata` |
+| `STRATA_MODELS_DIR` | `$LLM_ROOT/models/strata` |
+| `LLM_VENVS_DIR` | `$LLM_ROOT/venvs` |
+| `LLM_RUN_DIR` | `$LLM_ROOT/run` |
 | `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
 | `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
 | `SERVICE_USER` | 运行服务安装脚本的用户 |
@@ -94,12 +116,15 @@ portable-ollama serve
 
 ```text
 local-llm-agent/
-  .local/                 # agent 运行时状态、虚拟环境与缓存
-  models/                 # 本地 GGUF 文件（已加入 .gitignore）
+  .env                    # 本机路径配置（已忽略）
+  .env.example            # 可移植路径模板
   modelfiles/             # 轻量级 Ollama Modelfile
   scripts/common/         # 环境变量和状态辅助脚本
+  scripts/claude/         # Claude Code 通用启动器
   scripts/llama-cpp/      # llama.cpp 封装脚本
   scripts/ollama/         # Ollama 共享与维护脚本
+  scripts/strata/         # Strata 启动器
+  scripts/vllm/           # vLLM 启动器
   scripts/setup/          # 安装脚本
   systemd/                # 服务模板
   tuning/                 # 个性化构建与对比工具
@@ -125,7 +150,9 @@ local-llm-agent/
 portable-ollama serve
 ```
 
-`portable-ollama` 使用宿主机已安装的 `ollama`、本仓库同级的 `Ollama/models/llm` 模型库，以及 `127.0.0.1:14514`。如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`。
+`portable-ollama` 使用宿主机已安装的 `ollama`、配置的外部
+`OLLAMA_MODELS` 模型库（默认 `$LLM_ROOT/ollama/models/llm`），以及
+`127.0.0.1:14514`。如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`。
 
 `llama-cline.service` 由 `systemd/llama-cline.service.in` 模板生成。安装脚本会填入当前仓库路径和 service user，安装至 `/etc/systemd/system/llama-cline.service`，reload systemd，并保持 disabled 状态。
 
@@ -134,7 +161,7 @@ portable-ollama serve
 推荐的存储模式：
 
 ```text
-models/<name>.gguf                        # 实际的 GGUF 文件
+$LLM_MODELS_DIR/<name>.gguf               # 实际的 GGUF 文件
 $OLLAMA_MODELS/blobs/sha256-<digest>      # 指向 GGUF 的软链接
 ```
 
@@ -150,5 +177,10 @@ llama.cpp 直接读取 `models/*.gguf`。Ollama 读取自己的 CAS 路径并通
 - `python3`
 - `curl`
 - Ollama（如果使用 Ollama 工作流）
+- vLLM（如果使用 vLLM 工作流）
+- Strata（如果使用 Strata 工作流）
+- Codex CLI（如果使用 Codex 启动器）
+- Claude Code CLI（如果使用 Claude 启动器）
+- Hermes Agent（如果使用 Hermes 启动器）
 - systemd（如果使用服务安装脚本）
 - NVIDIA 驱动 / CUDA GPU，或仅 CPU 的 llama.cpp 构建

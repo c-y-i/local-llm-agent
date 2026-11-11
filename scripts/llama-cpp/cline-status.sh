@@ -4,12 +4,16 @@ set -euo pipefail
 # Show llama-server context/token/VRAM status for the Cline endpoint.
 #
 # Usage:
-#   cline-status.sh             # once, port 8080
+#   cline-status.sh             # once, port from LLAMA_CPP_PORT (default 8080)
 #   cline-status.sh 8081        # once, custom port
 #   cline-status.sh 8080 2      # refresh every 2 seconds
 
-HOST="${HOST:-127.0.0.1}"
-port="${1:-8080}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../common/env.sh
+source "${SCRIPT_DIR}/../common/env.sh"
+
+HOST="${HOST:-${LLAMA_CPP_HOST}}"
+port="${1:-${LLAMA_CPP_PORT}}"
 interval="${2:-}"
 
 show_status() {

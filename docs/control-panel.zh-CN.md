@@ -34,7 +34,8 @@ http://localhost:8765
 
 控制面板可查看：
 
-- Ollama、llama-cline、litellm-proxy 服务状态
+- Ollama/proxy systemd 服务状态
+- llama.cpp、vLLM、Strata 端点与模型发现状态
 - Anthropic proxy `:4000` 和 Stable Diffusion WebUI `:7860` 端口探测
 - GPU、系统、磁盘和模型目录状态
 - 已安装和已加载的 Ollama 模型

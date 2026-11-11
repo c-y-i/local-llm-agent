@@ -49,10 +49,10 @@ portable-ollama list
 portable-ollama run <model>
 ```
 
-`portable-ollama` points `OLLAMA_MODELS` at this repo's sibling
-`Ollama/models/llm` directory, uses `OLLAMA_HOST=127.0.0.1:14514`, and calls the
-host's `ollama` command. Set `OLLAMA_BIN=/path/to/ollama` to use a specific
-executable.
+`portable-ollama` points `OLLAMA_MODELS` at the configured external Ollama
+store (`$LLM_ROOT/ollama/models/llm` by default), uses
+`OLLAMA_HOST=127.0.0.1:14514`, and calls the host's `ollama` command. Set
+`OLLAMA_BIN=/path/to/ollama` to use a specific executable.
 
 Use a separate port when the host already has an Ollama service:
 

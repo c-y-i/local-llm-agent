@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # Env overrides:
 #   LOCAL_LLM_AGENT_ROOT — repo root
-#   LLAMA_CPP_ROOT       — sibling llama.cpp checkout/build
+#   LLAMA_CPP_ROOT       — external llama.cpp checkout/build
 #   LLAMA_CPP_BIN        — llama-cli binary
 #   LLM_MODELS_DIR       — model dir
 #   N_GPU_LAYERS   — layers offloaded to GPU (default 999, llama.cpp clamps to model max)

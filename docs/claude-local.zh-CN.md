@@ -21,7 +21,7 @@ shell 快捷方式示例：
 
 ```bash
 function claude-local() {
-  /media/data/LLM/scripts/ollama/claude-local.sh "$@"
+  "$HOME/Projects/local-llm-agent/scripts/ollama/claude-local.sh" "$@"
 }
 ```
 

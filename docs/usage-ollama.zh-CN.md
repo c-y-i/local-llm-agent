@@ -47,7 +47,10 @@ portable-ollama list
 portable-ollama run <model>
 ```
 
-`portable-ollama` 会把 `OLLAMA_MODELS` 指向本仓库同级的 `Ollama/models/llm`，使用 `OLLAMA_HOST=127.0.0.1:14514`，并调用宿主机上的 `ollama` 命令。需要指定可执行文件时，设置 `OLLAMA_BIN=/path/to/ollama`。
+`portable-ollama` 会把 `OLLAMA_MODELS` 指向配置的外部 Ollama 模型库
+（默认 `$LLM_ROOT/ollama/models/llm`），使用
+`OLLAMA_HOST=127.0.0.1:14514`，并调用宿主机上的 `ollama` 命令。需要指定
+可执行文件时，设置 `OLLAMA_BIN=/path/to/ollama`。
 
 Windows：
 

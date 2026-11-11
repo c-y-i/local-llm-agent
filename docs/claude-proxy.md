@@ -85,8 +85,12 @@ The service is still named `litellm-proxy.service` for compatibility with older
 notes and shell workflows. It no longer runs LiteLLM. The installed unit runs:
 
 ```text
-/usr/bin/python3 /media/data/LLM/scripts/ollama/anthropic-proxy.py
+/usr/bin/python3 <repo>/scripts/ollama/anthropic-proxy.py
 ```
+
+This proxy is only needed for Ollama. Current llama.cpp, vLLM, and Strata
+servers expose Anthropic's Messages API directly; use
+`scripts/claude/claude-local.sh` for those backends.
 
 Use either installer name:
 

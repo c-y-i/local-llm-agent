@@ -3,18 +3,29 @@
 English | [简体中文](setup.zh-CN.md)
 
 This project is a locally deployable LLM agent workspace with flexible
-deployment options: native host or portable drive.
-
-Both modes use the same base layout: clone this repo as `local-llm-agent` next
-to `llama-cpp/` and `Ollama/`. The same layout works for tiny CPU/SBC machines,
-ordinary laptops, small GPUs, and high-end desktop GPUs; model size and context
-settings are the parts that change.
+deployment options: native host or portable drive. The Git repository remains
+lightweight; all model, engine, cache, environment, and runtime data lives
+under `LLM_ROOT`.
 
 ```text
-<parent>/
-  local-llm-agent/
-  llama-cpp/
-  Ollama/
+~/LLM/                        # LLM_ROOT
+  models/
+    strata/
+  ollama/
+  llama.cpp/
+  huggingface/
+  strata/
+  venvs/
+  run/
+
+~/Projects/local-llm-agent/   # this repository
+```
+
+The default can be changed in `.env`:
+
+```bash
+cp .env.example .env
+# edit LLM_ROOT or individual path overrides
 ```
 
 ## Guided Setup
@@ -27,12 +38,30 @@ Check prerequisites and path resolution:
 ./scripts/setup/check-prereqs.sh
 ```
 
+Install the CLI:
+
+```bash
+./scripts/setup/install-llm.sh
+llm doctor
+```
+
 Build llama.cpp:
 
 ```bash
 ./scripts/setup/build-llama-cpp.sh --dry-run
 ./scripts/setup/build-llama-cpp.sh
 ```
+
+The builder enables `GGML_CUDA` automatically when `nvcc` or
+`/usr/local/cuda` is present. Force CPU-only or require CUDA explicitly:
+
+```bash
+LLAMA_CUDA=OFF ./scripts/setup/build-llama-cpp.sh
+LLAMA_CUDA=ON  ./scripts/setup/build-llama-cpp.sh
+```
+
+The existing build directory is reused, so remove or use a separate
+`LLAMA_CPP_ROOT` when switching between CPU-only and CUDA builds.
 
 Install Ollama (binary + systemd service):
 
@@ -90,12 +119,23 @@ All scripts source `scripts/common/env.sh`.
 | Variable | Default |
 |---|---|
 | `LOCAL_LLM_AGENT_ROOT` | repo root |
-| `LLAMA_CPP_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../llama-cpp` |
-| `OLLAMA_ROOT` | `$LOCAL_LLM_AGENT_ROOT/../Ollama` |
+| `LLM_ROOT` | `$HOME/LLM` |
+| `LLAMA_CPP_ROOT` | `$LLM_ROOT/llama.cpp` |
+| `OLLAMA_ROOT` | `$LLM_ROOT/ollama` |
 | `OLLAMA_MODELS` | `$OLLAMA_ROOT/models/llm` |
-| `LLM_MODELS_DIR` | `$LOCAL_LLM_AGENT_ROOT/models` |
+| `LLM_MODELS_DIR` | `$LLM_ROOT/models` |
+| `HF_HOME` | `$LLM_ROOT/huggingface` |
+| `STRATA_HOME` | `$LLM_ROOT/strata` |
+| `STRATA_MODELS_DIR` | `$LLM_ROOT/models/strata` |
+| `LLM_VENVS_DIR` | `$LLM_ROOT/venvs` |
+| `LLM_RUN_DIR` | `$LLM_ROOT/run` |
 | `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
 | `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
+| `LLAMA_CPP_BASE_URL` | `http://127.0.0.1:8080` |
+| `VLLM_BIN` | `vllm` on `PATH` |
+| `VLLM_BASE_URL` | `http://127.0.0.1:8000` |
+| `STRATA_BIN` | `strata` on `PATH` |
+| `STRATA_BASE_URL` | `http://127.0.0.1:8082` |
 | `SERVICE_USER` | user running the service installer |
 
 Override any of these when your folders live elsewhere.
@@ -104,12 +144,15 @@ Override any of these when your folders live elsewhere.
 
 ```text
 local-llm-agent/
-  .local/                 # local agent runtime state, venvs, and caches
-  models/                 # local GGUF files, ignored by Git
+  .env                    # local path config, ignored by Git
+  .env.example            # portable path template
   modelfiles/             # lightweight Ollama Modelfiles
   scripts/common/         # env and status helpers
+  scripts/claude/         # backend-neutral Claude Code launcher
   scripts/llama-cpp/      # llama.cpp wrappers
   scripts/ollama/         # Ollama sharing/maintenance helpers
+  scripts/strata/         # Strata launcher
+  scripts/vllm/           # vLLM launcher
   scripts/setup/          # guided setup scripts
   systemd/                # service templates
   tuning/                 # personality builder and comparison tools
@@ -122,6 +165,9 @@ Important docs:
 - [`models.md`](models.md) explains what model families are useful for.
 - [`hardware-matching.md`](hardware-matching.md) matches model choices to hardware tiers.
 - [`portable-llm-launcher.md`](portable-llm-launcher.md) explains running Ollama from a portable drive.
+- [`usage-vllm.md`](usage-vllm.md) covers vLLM and tool-call parser setup.
+- [`usage-strata.md`](usage-strata.md) covers Strata model planning and serving.
+- [`cli.md`](cli.md) is the `llm` command reference.
 - [`cline.md`](cline.md) covers Cline with llama.cpp or Ollama.
 - [`copilot.md`](copilot.md) covers Copilot Chat/CLI with Ollama.
 
@@ -136,8 +182,8 @@ For a portable drive, prefer the Portable LLM Launcher instead of a service:
 portable-ollama serve
 ```
 
-`portable-ollama` uses the host-installed `ollama` command, the repo's sibling
-`Ollama/models/llm` model store, and `127.0.0.1:14514`. Set
+`portable-ollama` uses the host-installed `ollama` command, the configured
+`OLLAMA_MODELS` model store, and `127.0.0.1:14514`. Set
 `OLLAMA_BIN=/path/to/ollama` if you need a specific executable.
 
 `llama-cline.service` is generated from `systemd/llama-cline.service.in`. The installer fills in the current repo path and service user, installs to `/etc/systemd/system/llama-cline.service`, reloads systemd, and keeps the unit disabled.
@@ -147,11 +193,13 @@ portable-ollama serve
 The intended storage pattern is:
 
 ```text
-models/<name>.gguf                        # real GGUF bytes
+$LLM_MODELS_DIR/<name>.gguf               # real GGUF bytes
 $OLLAMA_MODELS/blobs/sha256-<digest>      # symlink to the GGUF
 ```
 
-llama.cpp opens `models/*.gguf` directly. Ollama opens its CAS path and follows the symlink. The helper scripts in `scripts/ollama/` maintain that relationship.
+llama.cpp opens `$LLM_MODELS_DIR/*.gguf`. Ollama opens its CAS path and follows
+the symlink. The helper scripts in `scripts/ollama/` maintain that
+relationship.
 
 ## Requirements
 
@@ -163,5 +211,10 @@ Minimum useful tools:
 - `python3`
 - `curl`
 - Ollama, if using Ollama workflows
+- vLLM, if using vLLM workflows
+- Strata, if using Strata workflows
+- Claude Code CLI, if using the Claude Code launcher
+- Codex CLI, if using the Codex launcher
+- Hermes Agent, if using the Hermes launcher
 - systemd, if using service installers
 - NVIDIA driver/CUDA-capable GPU for GPU offload, or a CPU-only llama.cpp build with adjusted flags

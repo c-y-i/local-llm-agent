@@ -13,7 +13,7 @@ ollama pull <tag>
 For llama.cpp, download a GGUF from a well-maintained repo and place it in:
 
 ```text
-models/<name>.gguf
+$LLM_MODELS_DIR/<name>.gguf
 ```
 
 ## Example Picks

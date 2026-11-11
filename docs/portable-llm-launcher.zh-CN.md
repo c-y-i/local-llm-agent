@@ -11,10 +11,13 @@
 ```text
 <portable-drive>/
   local-llm-agent/
-  Ollama/models/llm/
+  LLM/
+    ollama/models/llm/
 ```
 
-- `Ollama/models/llm/` — 便携模型库
+- `LLM/ollama/models/llm/` — 便携模型库
+- 在移动硬盘仓库的 `.env` 中设置
+  `LLM_ROOT=/path/to/portable-drive/LLM`
 - `local-llm-agent/scripts/ollama/portable-llm-launcher.*` — 使用便携模型存储启动 Ollama
 - 启动器使用宿主机的 `ollama` 命令；如需指定可执行文件，可设置 `OLLAMA_BIN=/path/to/ollama`
 
@@ -54,7 +57,7 @@ portable-ollama run <model>
 |---|---|---|
 | `portable-ollama` | 对便携模型库执行 Ollama 命令；`serve` 会启动便携服务 | 仅 `serve` 会 |
 | `install-portable-ollama-command.sh` | 将 `portable-ollama` 软链接到 `~/.local/bin` | 不会 |
-| `portable-llm-launcher.sh` | 使用本仓库同级的 `Ollama/models/llm` 模型库启动 Ollama | 会 |
+| `portable-llm-launcher.sh` | 使用配置的外部 `OLLAMA_MODELS` 模型库启动 Ollama | 会 |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows 下同一便携模型库布局的启动器 | 会 |
 
 ### 直接运行底层启动器

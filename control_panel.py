@@ -13,6 +13,10 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
+from llm_paths import get_paths, load_env_file
+
+load_env_file()
+
 SERVICES = ("ollama", "llama-cline", "litellm-proxy")
 SERVICE_ACTIONS = ("start", "stop", "restart")
 DEFAULT_PULLABLE_MODELS = (
@@ -29,6 +33,11 @@ LOCAL_CLIENTS = ("127.0.0.1", "::1")
 DEFAULT_CONTROLS = "1"
 DEFAULT_PORT = "8766"
 DEFAULT_HOST = "127.0.0.1"
+BACKEND_URL_DEFAULTS = {
+    "llama.cpp": "http://127.0.0.1:8080",
+    "vllm": "http://127.0.0.1:8000",
+    "strata": "http://127.0.0.1:8082",
+}
 APP_TITLE = "Local LLM Control Panel"
 APP_EYEBROW = "Local runtime"
 APP_SUBTITLE = (
@@ -176,6 +185,39 @@ def get_ollama():
     return {"reachable": True, "models": models, "running": running}
 
 
+def get_backends():
+    """Probe OpenAI/Anthropic-compatible inference servers."""
+    env_names = {
+        "llama.cpp": "LLAMA_CPP_BASE_URL",
+        "vllm": "VLLM_BASE_URL",
+        "strata": "STRATA_BASE_URL",
+    }
+    result = {}
+    for name, default_url in BACKEND_URL_DEFAULTS.items():
+        url = os.environ.get(env_names[name], default_url).rstrip("/")
+        try:
+            req = urllib.request.Request(f"{url}/v1/models")
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                body = json.loads(resp.read())
+            models = [
+                str(model.get("id"))
+                for model in body.get("data", [])
+                if isinstance(model, dict) and model.get("id")
+            ]
+            result[name] = {
+                "reachable": True,
+                "url": url,
+                "models": models,
+            }
+        except Exception:
+            result[name] = {
+                "reachable": False,
+                "url": url,
+                "models": [],
+            }
+    return result
+
+
 def get_system():
     ram = {"available": False}
     try:
@@ -236,12 +278,8 @@ def get_storage():
     except Exception:
         result["/ (root)"] = {"available": False}
 
-    models_dir = os.environ.get(
-        "OLLAMA_MODELS",
-        os.path.normpath(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Ollama", "models", "llm")
-        ),
-    )
+    paths = get_paths()
+    models_dir = os.environ.get("OLLAMA_MODELS", str(paths["ollama_models"]))
     if os.path.isdir(models_dir):
         try:
             usage = shutil.disk_usage(models_dir)
@@ -715,6 +753,10 @@ function renderSvc(d){
     h+=`<div class="row"><span class="row-main">${dot(on)}<span class="label">${l}</span></span>${controls?serviceButtons(k):""}</div>`;
   }
   for(const[k,l] of Object.entries(PORTS)){const on=d.ports?.[k]?.reachable===true;h+=`<div class="row"><span class="row-main">${dot(on)}<span class="label">${l}</span></span></div>`;}
+  for(const[k,v] of Object.entries(d.backends||{})){
+    const models=(v.models||[]).length;
+    h+=`<div class="row"><span class="row-main">${dot(v.reachable)}<span class="label">${esc(k)} : ${esc(v.url)}</span></span><span class="metric-value">${v.reachable?`${models} model${models===1?"":"s"}`:"offline"}</span></div>`;
+  }
   if(!controls)h+='<div class="controls-note">Read-only mode is active.</div>';
   document.getElementById("svc").innerHTML=h;
 }
@@ -1040,6 +1082,7 @@ def build_status():
         "gpu": gpu,
         "system": system,
         "ollama": get_ollama(),
+        "backends": get_backends(),
         "storage": get_storage(),
         "pullable_models": models,
         "recommendation": get_model_recommendation(gpu, system, models),

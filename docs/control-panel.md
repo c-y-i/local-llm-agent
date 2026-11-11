@@ -27,7 +27,7 @@ Monitor is useful on shared or remote machines where you want visibility without
 
 | Card | Contents |
 |---|---|
-| Services | ollama, llama-cline, litellm-proxy — status + start / stop / restart |
+| Services | Ollama/proxy systemd services plus llama.cpp, vLLM, and Strata endpoint health |
 | GPU | VRAM usage, utilization, temperature |
 | System | CPU model, cores, RAM meter |
 | Storage | Root disk + Ollama models directory (highlights >85% full) |
@@ -46,6 +46,9 @@ The control panel detects when Ollama isn't running (shows a one-click start ban
 | `LLM_MONITOR_CONTROLS` | `1` / `0` | Force controls on or off regardless of script |
 | `LLM_PULLABLE_MODELS_JSON` | built-in starter catalog | JSON array of pullable Ollama model objects |
 | `LLM_PULLABLE_MODELS_FILE` | — | Path to a JSON file containing the pull catalog |
+| `LLAMA_CPP_BASE_URL` | `http://127.0.0.1:8080` | llama.cpp status/model discovery |
+| `VLLM_BASE_URL` | `http://127.0.0.1:8000` | vLLM status/model discovery |
+| `STRATA_BASE_URL` | `http://127.0.0.1:8082` | Strata status/model discovery |
 
 ```bash
 LLM_DASHBOARD_PORT=9000 python3 control_panel.py

@@ -25,10 +25,18 @@ check_cmd_optional() {
 
 echo "local-llm-agent paths"
 echo "  LOCAL_LLM_AGENT_ROOT=${LOCAL_LLM_AGENT_ROOT}"
+echo "  LLM_ROOT=${LLM_ROOT}"
 echo "  LLAMA_CPP_ROOT=${LLAMA_CPP_ROOT}"
 echo "  OLLAMA_ROOT=${OLLAMA_ROOT}"
 echo "  OLLAMA_MODELS=${OLLAMA_MODELS}"
 echo "  LLM_MODELS_DIR=${LLM_MODELS_DIR}"
+echo "  HF_HOME=${HF_HOME}"
+echo "  STRATA_HOME=${STRATA_HOME}"
+echo "  STRATA_MODELS_DIR=${STRATA_MODELS_DIR}"
+echo "  LLM_VENVS_DIR=${LLM_VENVS_DIR}"
+echo "  LLAMA_CPP_BASE_URL=${LLAMA_CPP_BASE_URL}"
+echo "  VLLM_BASE_URL=${VLLM_BASE_URL}"
+echo "  STRATA_BASE_URL=${STRATA_BASE_URL}"
 echo
 
 echo "commands"
@@ -37,7 +45,13 @@ for cmd in git cmake make cc c++ curl python3; do
 done
 check_cmd ollama
 check_cmd systemctl
+check_cmd_optional nvcc
 check_cmd_optional nvidia-smi
+check_cmd_optional codex
+check_cmd_optional claude
+check_cmd_optional hermes
+check_cmd_optional vllm
+check_cmd_optional strata
 echo
 
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -47,7 +61,7 @@ fi
 
 echo
 echo "directories"
-for dir in "$LOCAL_LLM_AGENT_ROOT" "$LLAMA_CPP_ROOT" "$OLLAMA_ROOT" "$LLM_MODELS_DIR" "$OLLAMA_MODELS"; do
+for dir in "$LOCAL_LLM_AGENT_ROOT" "$LLM_ROOT" "$LLAMA_CPP_ROOT" "$OLLAMA_ROOT" "$LLM_MODELS_DIR" "$OLLAMA_MODELS" "$HF_HOME" "$STRATA_HOME" "$STRATA_MODELS_DIR" "$LLM_VENVS_DIR"; do
   if [[ -d "$dir" ]]; then
     echo "ok   $dir"
   else

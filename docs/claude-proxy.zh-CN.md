@@ -4,6 +4,9 @@
 
 本仓库使用 `scripts/ollama/anthropic-proxy.py`，让 Claude Code 可以通过本地 Ollama 模型工作。
 
+该代理只用于 Ollama。新版 llama.cpp、vLLM 和 Strata 原生支持 Anthropic
+Messages API，应直接使用 `scripts/claude/claude-local.sh`。
+
 ```text
 Claude Code -> anthropic-proxy (:4000) -> Ollama (:11434)
 ```

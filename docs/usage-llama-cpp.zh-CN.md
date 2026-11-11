@@ -39,6 +39,7 @@
 - `http://127.0.0.1:<port>/v1/chat/completions`
 - `http://127.0.0.1:<port>/v1/completions`
 - `http://127.0.0.1:<port>/v1/models`
+- `http://127.0.0.1:<port>/v1/messages`（新版 llama.cpp）
 
 ## Cline 服务
 
@@ -65,13 +66,32 @@ Cline 配置：
 
 完整 Cline 指南见 [`cline.zh-CN.md`](cline.zh-CN.md)。
 
+## Claude Code 服务
+
+新版 llama.cpp 原生支持 Anthropic Messages API，因此 Claude Code 可以直接连接：
+
+```bash
+./scripts/llama-cpp/claude-server.sh <model>
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+启动脚本默认启用 `--jinja`，并设置稳定模型别名和单个并行 slot。确认后端可用：
+
+```bash
+./scripts/claude/claude-local.sh --backend llama-cpp --check
+```
+
+如果 llama.cpp 不提供 `/v1/messages`，请更新并重新构建。
+
 ## 环境变量
 
 | 变量 | 说明 |
 |---|---|
-| `LLAMA_CPP_ROOT` | llama.cpp 源码与构建目录 |
+| `LLAMA_CPP_ROOT` | `$LLM_ROOT/llama.cpp` |
 | `LLAMA_CPP_BIN` | `llama-cli` 路径 |
 | `LLAMA_SERVER_BIN` | `llama-server` 路径 |
 | `N_GPU_LAYERS` | GPU offload 层数 |
 | `N_CTX` | 上下文长度 |
+| `JINJA` | 默认 `1`，启用模型聊天模板和工具调用 |
 | `HOST` | 监听地址，默认 `127.0.0.1` |
+| `LLM_MODELS_DIR` | `$LLM_ROOT/models` |

@@ -1,81 +1,89 @@
-# Claude Code
+# Claude Code 连接本地模型
 
 [English](claude-code.md) | 简体中文
 
-Claude Code CLI 可以通过本地 Anthropic 兼容 proxy 连接 Ollama。
+Claude Code 使用 Anthropic Messages API。新版 llama.cpp、vLLM 和 Strata
+原生实现该接口，因此不需要代理。Ollama 仍通过本仓库的兼容代理连接。
 
-```text
-Claude Code CLI -> anthropic-proxy (:4000) -> Ollama (:11434)
+| 后端 | Claude Code 地址 | 兼容方式 |
+|---|---|---|
+| llama.cpp | `http://127.0.0.1:8080` | 原生 `/v1/messages` |
+| vLLM | `http://127.0.0.1:8000` | 原生 `/v1/messages` |
+| Strata | `http://127.0.0.1:8082` | 原生 `/v1/messages` |
+| Ollama | `http://127.0.0.1:4000` | 代理到 Ollama `:11434` |
+
+## 通用启动器
+
+```bash
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+./scripts/claude/claude-local.sh --backend vllm --model <served-model-id>
+./scripts/claude/claude-local.sh --backend strata --model <model-id>
+./scripts/claude/claude-local.sh --backend ollama --model <ollama-tag>
 ```
 
-本仓库使用 `scripts/ollama/anthropic-proxy.py`，它会将 Anthropic Messages API 转换为 Ollama chat API，并处理 Claude Code 常见的 thinking / tool-call 兼容问题。
+如果 `claude` 不在 `PATH` 中，请先安装官方 Claude Code CLI：
+<https://code.claude.com/docs/en/setup>
 
-## 快速启动
+省略 `--backend` 时，启动器按 llama.cpp、vLLM、Strata、Ollama proxy 的顺序
+检测。使用 `--check` 可在不启动 Claude Code 的情况下验证后端。
 
-Ollama：
+启动器默认设置 `CLAUDE_CODE_MAX_CONTEXT_TOKENS=32768`，避免 Claude Code
+错误地把本地模型当作 200K 上下文。应按服务端实际 `N_CTX` 覆盖：
+
+```bash
+CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536 \
+  ./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+本地模型 ID 可能触发 `[claude-code:unrecognized_model]` 诊断；只要后端正常
+返回内容，该诊断不会阻止运行。
+
+## llama.cpp
+
+```bash
+./scripts/llama-cpp/claude-server.sh <model>
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+该启动脚本启用 `--jinja`、设置稳定模型别名，并只分配一个并行 slot。旧版
+llama.cpp 如果没有 `/v1/messages`，必须重新构建当前版本。
+
+等价的环境变量：
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:8080 \
+ANTHROPIC_AUTH_TOKEN=local \
+ANTHROPIC_MODEL=<model> \
+claude --model <model>
+```
+
+## vLLM 与 Strata
+
+```bash
+./scripts/vllm/serve.sh Qwen/Qwen3.5-4B
+STRATA_FAMILY=qwen STRATA_MODEL=q2_0 ./scripts/strata/serve.sh
+```
+
+详细说明：
+
+- [`usage-vllm.zh-CN.md`](usage-vllm.zh-CN.md)
+- [`usage-strata.zh-CN.md`](usage-strata.zh-CN.md)
+
+## Ollama 兼容代理
 
 ```bash
 ./scripts/ollama/serve.sh
-```
-
-Proxy：
-
-```bash
 sudo systemctl start litellm-proxy
+./scripts/claude/claude-local.sh --backend ollama --model qwen2.5-coder:3b
 ```
 
-使用本地 Claude Code：
-
-```bash
-claude-local
-```
-
-完整启动器说明见 [`claude-local.zh-CN.md`](claude-local.zh-CN.md)。
-
-## 安装 proxy 服务
-
-```bash
-./scripts/ollama/install-claude-proxy-service.sh
-```
-
-服务名历史上叫 `litellm-proxy`，但现在实际运行的是 `anthropic-proxy.py`，并非 LiteLLM。
-
-常用命令：
-
-```bash
-sudo systemctl start litellm-proxy
-sudo systemctl status litellm-proxy
-sudo systemctl stop litellm-proxy
-journalctl -u litellm-proxy -f
-```
-
-## 测试
-
-检查 proxy：
-
-```bash
-curl -s http://localhost:4000/health
-```
-
-一次性测试：
-
-```bash
-ANTHROPIC_BASE_URL=http://localhost:4000 \
-ANTHROPIC_AUTH_TOKEN=ollama \
-claude --model qwen2.5-coder:3b -p "Reply with exactly: ready"
-```
-
-## 常见问题
+## 故障排查
 
 | 问题 | 处理方法 |
 |---|---|
-| `4000` 端口 `Connection refused` | 启动 `litellm-proxy` |
-| `11434` 端口 `Connection refused` | 启动 Ollama |
-| `does not support thinking` | 确认走的是 `anthropic-proxy.py` |
-| tool call 输出异常 | 换用更适合工具调用的 coder 模型 |
-
-相关文档：
-
-- Proxy 内部实现：[`claude-proxy.zh-CN.md`](claude-proxy.zh-CN.md)
-- Cline 配置：[`cline.zh-CN.md`](cline.zh-CN.md)
-- Copilot + Ollama：[`copilot.zh-CN.md`](copilot.zh-CN.md)
+| 连接被拒绝 | 用 `--check` 确认地址、端口和服务器状态 |
+| llama.cpp 不支持 `/v1/messages` | 更新并重新构建 llama.cpp |
+| 工具调用失败 | 换用支持工具调用的 coder 模型，并保留 `--jinja` |
+| vLLM 工具调用失败 | 设置正确的 `VLLM_TOOL_CALL_PARSER` |
+| 显存不足 | 缩短上下文、停止其他后端，或使用更小量化模型 |
+| Ollama thinking 错误 | 使用 `--backend ollama`，让代理移除 Anthropic thinking 参数 |

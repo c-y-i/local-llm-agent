@@ -70,17 +70,47 @@ sudo systemctl status llama-cline
 
 Configure Cline with Base URL `http://127.0.0.1:8080/v1`, the model printed by the wrapper, and the printed `Context` value. Full guide: [`cline.md`](cline.md).
 
+## Claude Code Server
+
+Recent llama.cpp versions expose Anthropic's Messages API directly, so Claude
+Code needs no translation proxy:
+
+```bash
+./scripts/llama-cpp/claude-server.sh <model>
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+The wrapper enables `--jinja`, sets a stable model alias, and uses one parallel
+slot. Confirm the backend without launching Claude:
+
+```bash
+./scripts/claude/claude-local.sh --backend llama-cpp --check
+```
+
+Equivalent direct configuration:
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:8080 \
+ANTHROPIC_AUTH_TOKEN=local \
+ANTHROPIC_MODEL=<model> \
+claude --model <model>
+```
+
+Older llama.cpp binaries without `/v1/messages` cannot be used this way. Rebuild
+from current `main`.
+
 ## Environment Knobs
 
 | Variable | Default |
 |---|---|
 | `N_GPU_LAYERS` | `999` |
 | `N_CTX` | wrapper-specific default |
+| `JINJA` | `1` (enable model chat templates and tool calling) |
 | `HOST` | `127.0.0.1` |
-| `LLAMA_CPP_ROOT` | `../llama-cpp` |
+| `LLAMA_CPP_ROOT` | `$LLM_ROOT/llama.cpp` |
 | `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
 | `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |
-| `LLM_MODELS_DIR` | `./models` |
+| `LLM_MODELS_DIR` | `$LLM_ROOT/models` |
 
 Example:
 

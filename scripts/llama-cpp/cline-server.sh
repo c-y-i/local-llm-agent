@@ -14,13 +14,14 @@ set -euo pipefail
 #
 # Env overrides:
 #   LOCAL_LLM_AGENT_ROOT  repo root
-#   LLAMA_CPP_ROOT        sibling llama.cpp checkout/build
+#   LLAMA_CPP_ROOT        external llama.cpp checkout/build
 #   LLAMA_SERVER_BIN      llama-server binary
 #   LLM_MODELS_DIR        model dir
 #   N_GPU_LAYERS      999
 #   N_CTX             model-specific default; set explicitly to override
 #   N_PARALLEL        1
 #   METRICS           1
+#   JINJA             1
 #   TEMP              0.2
 #   TOP_P             0.9
 #   REPEAT_PENALTY    1.1
@@ -34,13 +35,14 @@ MODELS_DIR="$LLM_MODELS_DIR"
 N_GPU_LAYERS="${N_GPU_LAYERS:-999}"
 N_PARALLEL="${N_PARALLEL:-1}"
 METRICS="${METRICS:-1}"
+JINJA="${JINJA:-1}"
 TEMP="${TEMP:-0.2}"
 TOP_P="${TOP_P:-0.9}"
 REPEAT_PENALTY="${REPEAT_PENALTY:-1.1}"
-HOST="${HOST:-127.0.0.1}"
+HOST="${HOST:-${LLAMA_CPP_HOST}}"
 
 name="${1:-qwen2.5-coder-3b}"
-port="${2:-8080}"
+port="${2:-${LLAMA_CPP_PORT}}"
 model="${MODELS_DIR}/${name}.gguf"
 
 if [[ -z "${N_CTX+x}" ]]; then
@@ -109,10 +111,15 @@ echo "  API Key  : 114514"
 echo "  Model ID : ${name}      (informational; llama-server only serves the loaded model)"
 echo "  Context  : ${N_CTX}      (set Cline Context Window Size to match)"
 echo
+echo "Claude Code:"
+echo "  ANTHROPIC_BASE_URL=http://${HOST}:${port}"
+echo "  ./scripts/claude/claude-local.sh --backend llama-cpp --model ${name}"
+echo
 
 args=(
   "$LLAMA_SERVER_BIN"
   -m "$model"
+  --alias "$name"
   -ngl "$N_GPU_LAYERS"
   -c "$N_CTX"
   -np "$N_PARALLEL"
@@ -126,5 +133,9 @@ args=(
 if [[ "$METRICS" != "0" && "$METRICS" != "false" ]]; then
   args+=(--metrics)
 fi
+if [[ "$JINJA" != "0" && "$JINJA" != "false" ]]; then
+  args+=(--jinja)
+fi
+[[ -n "${LLAMA_SERVER_API_KEY:-}" ]] && args+=(--api-key "$LLAMA_SERVER_API_KEY")
 
 exec "${args[@]}"

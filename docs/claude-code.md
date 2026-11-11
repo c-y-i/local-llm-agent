@@ -1,16 +1,116 @@
-# Claude Code With Ollama
+# Claude Code With Local Backends
 
 English | [简体中文](claude-code.zh-CN.md)
 
-Claude Code is Anthropic's CLI coding agent. It speaks Anthropic's Messages
-API format, which Ollama does not implement directly. This repo uses a small
-local Anthropic-compatible proxy between Claude Code and Ollama.
+Claude Code sends requests to Anthropic's Messages API. Recent llama.cpp, vLLM,
+and Strata releases implement that API directly, so no proxy is needed for
+those backends.
 
-```
-Claude Code CLI -> anthropic-proxy (port 4000) -> Ollama (port 11434)
+| Backend | Claude Code base URL | Compatibility |
+|---|---|---|
+| llama.cpp | `http://127.0.0.1:8080` | Native `/v1/messages` |
+| vLLM | `http://127.0.0.1:8000` | Native `/v1/messages` |
+| Strata | `http://127.0.0.1:8082` | Native `/v1/messages` |
+| Ollama | `http://127.0.0.1:4000` | Compatibility proxy to Ollama `:11434` |
+
+Use the backend-neutral launcher:
+
+```bash
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+./scripts/claude/claude-local.sh --backend vllm --model <served-model-id>
+./scripts/claude/claude-local.sh --backend strata --model <model-id>
+./scripts/claude/claude-local.sh --backend ollama --model <ollama-tag>
 ```
 
-All three must be running when using local models.
+Install the official Claude Code CLI first if `claude` is not on `PATH`:
+<https://code.claude.com/docs/en/setup>
+
+If `--backend` is omitted, the launcher checks llama.cpp, vLLM, Strata, and the
+Ollama proxy in that order. `--check` validates a backend without launching
+Claude Code.
+
+The launcher sets `CLAUDE_CODE_MAX_CONTEXT_TOKENS=32768` by default so Claude
+Code does not assume an unrecognized local model has a 200K context window.
+Override it to match the server:
+
+```bash
+CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536 \
+  ./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+Claude Code may print an `[claude-code:unrecognized_model]` diagnostic for a
+local model ID. It is harmless when the backend responds successfully; the
+launcher registers the selected model and disables nonessential traffic.
+
+## llama.cpp
+
+Start a tool-capable GGUF with:
+
+```bash
+./scripts/llama-cpp/claude-server.sh <model>
+```
+
+This wrapper enables llama.cpp's Jinja chat templates, exposes a stable model
+alias, limits parallel slots to one, and serves both:
+
+```text
+OpenAI:    http://127.0.0.1:8080/v1
+Anthropic: http://127.0.0.1:8080/v1/messages
+```
+
+Then launch Claude Code:
+
+```bash
+./scripts/claude/claude-local.sh --backend llama-cpp --model <model>
+```
+
+The equivalent direct environment is:
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:8080 \
+ANTHROPIC_AUTH_TOKEN=local \
+ANTHROPIC_MODEL=<model> \
+claude --model <model>
+```
+
+Use a current llama.cpp build. Native Anthropic Messages support was added in
+2026; older binaries only expose the OpenAI API.
+
+## vLLM And Strata
+
+Start vLLM:
+
+```bash
+./scripts/vllm/serve.sh Qwen/Qwen3.5-4B
+```
+
+Start Strata:
+
+```bash
+STRATA_FAMILY=qwen STRATA_MODEL=q2_0 ./scripts/strata/serve.sh
+```
+
+Full backend setup:
+
+- [`usage-vllm.md`](usage-vllm.md)
+- [`usage-strata.md`](usage-strata.md)
+
+## Ollama Proxy
+
+Ollama does not implement Anthropic's Messages API directly, so this repo keeps
+a compatibility proxy for Ollama:
+
+```text
+Claude Code CLI -> anthropic-proxy :4000 -> Ollama :11434
+```
+
+Start Ollama and the proxy, then use the launcher:
+
+```bash
+./scripts/ollama/serve.sh
+sudo systemctl start litellm-proxy
+./scripts/claude/claude-local.sh --backend ollama --model qwen2.5-coder:3b
+```
 
 ## Critical: Thinking Param Handling
 
@@ -51,7 +151,7 @@ sudo systemctl start llama-cline
 The proxy script is:
 
 ```bash
-/media/data/LLM/scripts/ollama/anthropic-proxy.py
+scripts/ollama/anthropic-proxy.py
 ```
 
 Proxy internals, including the optional filesystem intent router, are documented
@@ -89,7 +189,7 @@ sudo systemctl start litellm-proxy
 **Claude Code:**
 
 ```bash
-claude-local --model qwen2.5-coder:3b
+./scripts/claude/claude-local.sh --backend ollama --model qwen2.5-coder:3b
 ```
 
 **Service controls:**
@@ -105,13 +205,17 @@ journalctl -u litellm-proxy -f
 Add to `~/.bashrc`:
 
 ```bash
+export LOCAL_LLM_AGENT_ROOT="$HOME/Projects/local-llm-agent"
+
 function claude-local() {
-  /media/data/LLM/scripts/ollama/claude-local.sh "$@"
+  "$LOCAL_LLM_AGENT_ROOT/scripts/claude/claude-local.sh" "$@"
 }
 
 function claude-cloud() {
+  unset ANTHROPIC_MODEL
   unset ANTHROPIC_BASE_URL
   unset ANTHROPIC_AUTH_TOKEN
+  unset ANTHROPIC_API_KEY
   claude "$@"
 }
 ```
@@ -127,20 +231,15 @@ source ~/.bashrc
 The proxy path can run non-Qwen3 models because it removes Claude Code's
 Anthropic thinking parameter before forwarding to Ollama.
 
-Running `claude-local` with no arguments opens a local model picker. Models
-currently loaded by Ollama are shown first and marked `RUNNING`; pressing Enter
-selects the first model. If no model is loaded, preferred Claude Code models
-such as `qwen2.5-coder:3b` are listed before the rest. If you pass `--model`,
-the picker is skipped:
+The backend-neutral launcher uses the backend model list. If the server
+reports exactly one model, it selects that model automatically. Otherwise,
+pass `--model`. For Ollama, choose an installed tag:
 
 ```bash
-claude-local                         # pick from installed Ollama models
-claude-local --model qwen2.5-coder:3b # skip picker
-claude-local -p "hi"                 # pick first, then run the prompt
+ollama list
+claude-local --backend ollama --model qwen2.5-coder:3b
+claude-local --check                 # validate without launching Claude
 ```
-
-In an interactive terminal, use Up/Down arrows or `j`/`k` to move, Enter to
-select, `q` to quit, or type a model number directly.
 
 | Model | VRAM | Notes |
 |---|---|---|
@@ -158,10 +257,13 @@ claude-cloud
 
 ## Verify
 
-Check the Claude Code proxy is up:
+Check the selected backend and model:
 
 ```bash
-curl -s http://localhost:4000/health
+./scripts/claude/claude-local.sh --backend llama-cpp --check
+./scripts/claude/claude-local.sh --backend vllm --check
+./scripts/claude/claude-local.sh --backend strata --check
+curl -s http://localhost:4000/health  # Ollama proxy
 ```
 
 Quick chat test:

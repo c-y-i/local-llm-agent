@@ -14,10 +14,12 @@ host-specific; a foreground launcher is easier to move between computers.
 ```text
 <portable-drive>/
   local-llm-agent/
-  Ollama/models/llm/
+  LLM/
+    ollama/models/llm/
 ```
 
-- `Ollama/models/llm/` is the portable model library.
+- `LLM/ollama/models/llm/` is the portable model library.
+- Set `LLM_ROOT=/path/to/portable-drive/LLM` in the drive's `.env`.
 - `local-llm-agent/scripts/ollama/portable-llm-launcher.*` starts Ollama with
   the portable model store.
 - The launcher uses the host's `ollama` command. Set
@@ -64,7 +66,7 @@ Script roles:
 |---|---|---|
 | `portable-ollama` | Runs Ollama commands against the portable store; `serve` starts the portable server | Only with `serve` |
 | `install-portable-ollama-command.sh` | Symlinks `portable-ollama` into `~/.local/bin` | No |
-| `portable-llm-launcher.sh` | Starts Ollama with this repo's sibling `Ollama/models/llm` store | Yes |
+| `portable-llm-launcher.sh` | Starts Ollama with the configured external `OLLAMA_MODELS` store | Yes |
 | `portable-llm-launcher.ps1` / `.cmd` | Windows launcher for the same portable model-store layout | Yes |
 
 ### Direct Launcher

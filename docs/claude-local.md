@@ -22,7 +22,7 @@ The shell shortcut in `~/.bashrc` should call that script:
 
 ```bash
 function claude-local() {
-  /media/data/LLM/scripts/ollama/claude-local.sh "$@"
+  "$HOME/Projects/local-llm-agent/scripts/ollama/claude-local.sh" "$@"
 }
 ```
 
