@@ -64,8 +64,13 @@ case "$tag" in
 esac
 
 if [[ ! -f "$manifest" ]]; then
-  echo "Manifest not found after create: $manifest" >&2
-  exit 1
+  manifest_v2="${OLLAMA_MODELS}/manifests-v2/ollama.com/${manifest#${MANIFESTS}/}"
+  if [[ -f "$manifest_v2" ]]; then
+    manifest="$manifest_v2"
+  else
+    echo "Manifest not found after create: $manifest" >&2
+    exit 1
+  fi
 fi
 
 digest="$(python3 -c '
@@ -85,7 +90,12 @@ if [[ -L "$cas_blob" ]]; then
 fi
 
 echo "==> Collapsing duplicate: replace CAS copy with symlink to ${gguf}"
-sudo -A -p '' rm "$cas_blob"
-sudo -A -p '' ln -s "$gguf" "$cas_blob"
+if [[ -w "$(dirname "$cas_blob")" ]]; then
+  rm "$cas_blob"
+  ln -s "$gguf" "$cas_blob"
+else
+  sudo -A -p '' rm "$cas_blob"
+  sudo -A -p '' ln -s "$gguf" "$cas_blob"
+fi
 
 echo "Done. ${tag} now uses ${gguf}; CAS contains a symlink only."

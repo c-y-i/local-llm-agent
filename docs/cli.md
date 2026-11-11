@@ -39,11 +39,25 @@ arguments remain available for scripts.
 
 ```bash
 ./scripts/setup/install-llm.sh
+source .venv/bin/activate
 llm --version
 ```
 
 The installer links `~/.local/bin/llm` to this repository. Ensure
-`~/.local/bin` is on `PATH`.
+`~/.local/bin` is on `PATH`. The virtualenv is intentionally explicit:
+activate it in every new shell before using `llm`.
+
+It also installs direct local-agent commands:
+
+```bash
+claude-local
+codex-local
+hermes-local
+```
+
+These commands call `llm agent <name>` internally, so they use the same
+backend/model selection and configuration isolation. `llm` and the `*-local`
+commands coexist.
 
 ## Storage
 
@@ -64,7 +78,7 @@ The default layout is:
   llama.cpp/
   huggingface/
   strata/
-  venvs/
+  .venv/                # required managed virtualenv
   run/
 ```
 
@@ -92,7 +106,7 @@ llm build llama-cpp
 llm build llama-cpp --cuda OFF   # force CPU-only
 llm build llama-cpp --cuda ON
 
-llm install vllm                 # ~/LLM/venvs/vllm
+llm install vllm                 # ~/LLM/.venv
 llm install ollama
 ```
 
@@ -126,6 +140,13 @@ llm agent hermes
 
 `llm agent` reads the running backend and served model automatically. If
 multiple backends are running, it asks which one to use.
+
+Use `--` before arbitrary agent CLI options:
+
+```bash
+llm agent hermes --model qwen3.5-4b-official:latest -- \
+  -q "Reply with exactly READY" --oneshot -Q
+```
 
 ## Claude Code
 

@@ -15,7 +15,7 @@ under `LLM_ROOT`.
   llama.cpp/
   huggingface/
   strata/
-  venvs/
+  .venv/
   run/
 
 ~/Projects/local-llm-agent/   # this repository
@@ -127,7 +127,7 @@ All scripts source `scripts/common/env.sh`.
 | `HF_HOME` | `$LLM_ROOT/huggingface` |
 | `STRATA_HOME` | `$LLM_ROOT/strata` |
 | `STRATA_MODELS_DIR` | `$LLM_ROOT/models/strata` |
-| `LLM_VENVS_DIR` | `$LLM_ROOT/venvs` |
+| `LLM_VENV_DIR` | `$LLM_ROOT/.venv` |
 | `LLM_RUN_DIR` | `$LLM_ROOT/run` |
 | `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
 | `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |

@@ -7,6 +7,7 @@
 *.local.*
 docs/*.local.md
 .local/
+/.venv
 notes.local.md
 worklog.local.md
 

@@ -10,7 +10,7 @@ Everyday use:
 
 ```bash
 llm start       # choose backend and existing model
-llm agent       # choose Claude, Codex, or Hermes
+claude-local    # or codex-local / hermes-local
 ```
 
 | Framework | Required protocol | llama.cpp | vLLM | Strata | Ollama |
@@ -55,6 +55,10 @@ supplies:
 - selected model
 - `model_context_window`, defaulting to 32K
 
+For Ollama, the wrapper delegates to Ollama's Codex integration. It also uses
+an isolated `CODEX_HOME` at `$LLM_ROOT/codex-local`, so existing `~/.codex`
+providers such as DeepSeek remain unchanged.
+
 Use `--context` to match the backend:
 
 ```bash
@@ -76,11 +80,21 @@ The wrapper configures Hermes' custom provider:
 ```text
 OPENAI_BASE_URL=http://127.0.0.1:8080/v1
 OPENAI_API_KEY=local
-provider=main
+provider=custom
 ```
 
 The same command works with vLLM, Strata, and Ollama. Hermes documents custom
 OpenAI-compatible endpoints as a first-class provider.
+
+Hermes sessions use `$LLM_ROOT/hermes-local` as `HERMES_HOME`, keeping local
+agent state separate from any existing Hermes configuration.
+
+## Claude Proxy
+
+Ollama does not natively provide the Anthropic chat template behavior Claude
+Code expects. `llm claude --backend ollama` starts the repository's
+Anthropic-compatible proxy automatically on port 4000 and merges all system
+instructions into the required leading system block.
 
 ## Agent Safety
 

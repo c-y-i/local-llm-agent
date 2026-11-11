@@ -15,7 +15,10 @@ Install the command once:
 
 ```bash
 ./scripts/setup/install-llm.sh
+source .venv/bin/activate
 ```
+
+`llm` requires this virtualenv and prints the activation command if it is not active.
 
 Common commands:
 
@@ -31,6 +34,18 @@ llm build llama-cpp
 llm install vllm
 llm claude --backend llama-cpp --model qwen3.5-4b
 ```
+
+Direct local-agent commands are also installed:
+
+```bash
+source .venv/bin/activate
+claude-local
+codex-local
+hermes-local
+```
+
+They use the same backend/model selection as `llm agent`. Keep `llm` for
+starting models, setup, and status.
 
 Customize locations by copying `.env.example` to `.env` and setting
 `LLM_ROOT`, `LLM_MODELS_DIR`, or any individual override.
@@ -87,7 +102,7 @@ Start a model and choose the agent interactively:
 
 ```bash
 llm start             # terminal 1
-llm agent claude      # terminal 2
+claude-local          # terminal 2
 ```
 
 Explicit commands remain available:
@@ -104,7 +119,7 @@ Full guide: [`docs/claude-code.md`](docs/claude-code.md). vLLM and Strata setup:
 ### Codex
 
 ```bash
-llm agent codex
+codex-local
 ```
 
 Codex uses the Responses API for custom providers. `llm codex` configures the
@@ -113,7 +128,7 @@ provider automatically. Full guide: [`docs/agents.md`](docs/agents.md).
 ### Hermes
 
 ```bash
-llm agent hermes
+hermes-local
 ```
 
 Hermes connects through its custom OpenAI-compatible provider.
@@ -165,7 +180,7 @@ Full guide: [`docs/control-panel.md`](docs/control-panel.md)
   llama.cpp/           # llama.cpp source and build
   huggingface/         # shared Hugging Face/vLLM cache
   strata/              # Strata application state
-  venvs/               # Python virtual environments
+  .venv/               # managed Python virtualenv (required by llm)
   run/                 # runtime state and logs
 
 ~/Projects/local-llm-agent/  # lightweight Git repository

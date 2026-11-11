@@ -14,7 +14,7 @@ Git 仓库只保存代码与文档；模型、引擎、缓存、虚拟环境和�
   llama.cpp/
   huggingface/
   strata/
-  venvs/
+  .venv/
   run/
 
 ~/Projects/local-llm-agent/   # 本仓库
@@ -104,7 +104,7 @@ portable-ollama serve
 | `HF_HOME` | `$LLM_ROOT/huggingface` |
 | `STRATA_HOME` | `$LLM_ROOT/strata` |
 | `STRATA_MODELS_DIR` | `$LLM_ROOT/models/strata` |
-| `LLM_VENVS_DIR` | `$LLM_ROOT/venvs` |
+| `LLM_VENV_DIR` | `$LLM_ROOT/.venv` |
 | `LLM_RUN_DIR` | `$LLM_ROOT/run` |
 | `LLAMA_CPP_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-cli` |
 | `LLAMA_SERVER_BIN` | `$LLAMA_CPP_ROOT/build/bin/llama-server` |

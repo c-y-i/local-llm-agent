@@ -9,11 +9,11 @@ vLLM 提供 OpenAI 和 Anthropic 兼容接口，适合模型完全驻留在 GPU 
 
 ```bash
 llm install vllm
-source "$HOME/LLM/venvs/vllm/bin/activate"
+source "$HOME/LLM/.venv/bin/activate"
 python -m pip install --upgrade pip
 ```
 
-vLLM 虚拟环境安装在 `LLM_VENVS_DIR`，不会写入 Git 仓库。
+vLLM 虚拟环境安装在 `LLM_VENV_DIR`，不会写入 Git 仓库。
 
 ## 启动
 

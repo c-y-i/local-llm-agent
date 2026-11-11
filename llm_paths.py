@@ -63,8 +63,10 @@ def get_paths() -> dict[str, Path]:
         "strata_models": Path(
             os.environ.get("STRATA_MODELS_DIR", llm_root / "models" / "strata")
         ),
-        "venvs": Path(os.environ.get("LLM_VENVS_DIR", llm_root / "venvs")),
+        "venv": Path(os.environ.get("LLM_VENV_DIR", llm_root / ".venv")),
         "run": Path(os.environ.get("LLM_RUN_DIR", llm_root / "run")),
+        "codex": Path(os.environ.get("LLM_CODEX_HOME", llm_root / "codex-local")),
+        "hermes": Path(os.environ.get("LLM_HERMES_HOME", llm_root / "hermes-local")),
     }
     return {name: path.expanduser().resolve() for name, path in values.items()}
 
@@ -80,8 +82,10 @@ def ensure_directories(paths: dict[str, Path] | None = None) -> dict[str, Path]:
         "hf_home",
         "strata_home",
         "strata_models",
-        "venvs",
+        "venv",
         "run",
+        "codex",
+        "hermes",
     ):
         paths[name].mkdir(parents=True, exist_ok=True)
     return paths
@@ -98,8 +102,10 @@ def export_paths(paths: dict[str, Path] | None = None) -> None:
         "HF_HOME": "hf_home",
         "STRATA_HOME": "strata_home",
         "STRATA_MODELS_DIR": "strata_models",
-        "LLM_VENVS_DIR": "venvs",
+        "LLM_VENV_DIR": "venv",
         "LLM_RUN_DIR": "run",
+        "LLM_CODEX_HOME": "codex",
+        "LLM_HERMES_HOME": "hermes",
     }
     for env_name, path_name in exports.items():
         os.environ[env_name] = str(paths[path_name])

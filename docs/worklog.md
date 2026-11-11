@@ -11,6 +11,8 @@ Machine-specific migration notes, local paths, one-off command history, and hard
 - `llm` exposes path inspection, diagnostics, model discovery, engine installation/build, serving, and Claude Code launch.
 - Bare `llm` opens an interactive menu; `llm start` selects a backend/model and `llm agent` selects an agent for the running model.
 - Agent compatibility covers Claude Code, Codex CLI Responses providers, and Hermes custom OpenAI-compatible endpoints.
+- Codex local sessions use an isolated `CODEX_HOME`; Claude's Ollama proxy starts on demand; Hermes uses explicit custom-provider flags.
+- The installer also creates `claude-local`, `codex-local`, and `hermes-local` wrappers alongside the `llm` control CLI.
 - Public scripts resolve paths from `LLM_ROOT`, `LLAMA_CPP_ROOT`, `OLLAMA_ROOT`, `OLLAMA_MODELS`, `LLM_MODELS_DIR`, `HF_HOME`, and Strata path variables.
 - Backend defaults resolve llama.cpp, vLLM, and Strata URLs through `scripts/common/env.sh`.
 - Claude Code can connect natively to current llama.cpp, vLLM, and Strata servers through the shared launcher; Ollama retains the compatibility proxy.

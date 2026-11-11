@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -43,14 +44,47 @@ def _run(args: list[str], env: dict[str, str] | None = None) -> int:
     return result.returncode
 
 
+def _passthrough(args) -> list[str]:
+    values = list(args)
+    if values and values[0] == "--":
+        return values[1:]
+    return values
+
+
+def _ensure_anthropic_proxy(env: dict[str, str]) -> None:
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:4000/health", timeout=1) as response:
+            if response.status == 200:
+                return
+    except Exception:
+        pass
+
+    paths = ensure_directories()
+    log_path = paths["run"] / "anthropic-proxy.log"
+    with log_path.open("ab") as log:
+        process = subprocess.Popen(
+            [sys.executable, str(REPO_ROOT / "scripts/ollama/anthropic-proxy.py")],
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    (paths["run"] / "anthropic-proxy.pid").write_text(f"{process.pid}\n")
+
+    for _ in range(20):
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:4000/health", timeout=0.5):
+                return
+        except Exception:
+            time.sleep(0.25)
+    raise RuntimeError("Claude compatibility proxy did not start")
+
+
 def _configured_env() -> dict[str, str]:
     paths = ensure_directories()
     export_paths(paths)
     env = os.environ.copy()
-    if not shutil.which("vllm", path=env.get("PATH")):
-        vllm_bin = paths["venvs"] / "vllm" / "bin" / "vllm"
-        if vllm_bin.is_file():
-            env["VLLM_BIN"] = str(vllm_bin)
     if not shutil.which("strata", path=env.get("PATH")):
         strata_bin = Path.home() / ".local" / "bin" / "strata"
         if strata_bin.is_file():
@@ -59,6 +93,23 @@ def _configured_env() -> dict[str, str]:
     if llama_server.is_file():
         env["LLAMA_SERVER_BIN"] = str(llama_server)
     return env
+
+
+def _require_managed_venv() -> int | None:
+    if os.environ.get("LLM_SKIP_VENV_CHECK") == "1":
+        return None
+    paths = get_paths()
+    expected = paths["venv"].resolve()
+    active = Path(sys.prefix).resolve()
+    if active == expected:
+        return None
+    activate = expected / "bin" / "activate"
+    print("The managed Python environment is not active.", file=sys.stderr)
+    if activate.is_file():
+        print(f"Activate it with: source {activate}", file=sys.stderr)
+    else:
+        print("Create it first with: ./scripts/setup/install-llm.sh", file=sys.stderr)
+    return 3
 
 
 def _backend_status(env: dict[str, str]) -> dict[str, dict]:
@@ -230,9 +281,13 @@ def _choose_backend(env: dict[str, str], requested: str | None) -> str:
     for backend in BACKENDS:
         models = _discover_models(backend, env, paths)
         installed = _backend_installed(backend, env)
-        state = "installed" if installed else "not installed"
-        choices.append(
-            (backend, f"{backend:10s} {state:14s} {len(models)} known model(s)")
+        if installed:
+            choices.append(
+                (backend, f"{backend:10s} installed      {len(models)} known model(s)")
+            )
+    if not choices:
+        raise RuntimeError(
+            "no inference backend is installed; run `llm setup` first"
         )
     preferred = [
         index
@@ -240,18 +295,34 @@ def _choose_backend(env: dict[str, str], requested: str | None) -> str:
         if _backend_installed(backend, env)
         and _discover_models(backend, env, paths)
     ]
-    installed = [
-        index
-        for index, (backend, _label) in enumerate(choices, 1)
-        if _backend_installed(backend, env)
-    ]
-    default = (preferred or installed or [1])[0]
+    default = (preferred or [1])[0]
     selected = _prompt_choice(
         "Choose an inference backend", choices, default=default
     )
     if selected is None:
         raise RuntimeError("cancelled")
     return selected
+
+
+def _warm_ollama_model(env: dict[str, str], model: str) -> int:
+    base_url = env.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    payload = json.dumps(
+        {"model": model, "prompt": ".", "stream": False, "keep_alive": "10m"}
+    ).encode()
+    request = urllib.request.Request(
+        f"{base_url}/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=300):
+            pass
+    except Exception as exc:
+        print(f"error: could not load {model}: {exc}", file=sys.stderr)
+        return 2
+    print(f"Loaded {model}")
+    return 0
 
 
 def _choose_model(
@@ -303,12 +374,12 @@ def _codex_command(
 ) -> list[str]:
     if backend == "ollama":
         return [
-            "codex",
-            "--oss",
-            "--local-provider",
             "ollama",
+            "launch",
+            "codex",
             "--model",
             model,
+            "--",
             *extra,
         ]
 
@@ -340,6 +411,7 @@ def codex_environment(
     env: dict[str, str], backend: str, base_url: str, token: str, model: str
 ) -> dict[str, str]:
     result = env.copy()
+    result["CODEX_HOME"] = str(get_paths()["codex"])
     result["LOCAL_LLM_API_KEY"] = token
     result["OPENAI_API_KEY"] = token
     if backend == "ollama":
@@ -348,13 +420,17 @@ def codex_environment(
 
 
 def _hermes_command(
-    backend: str, base_url: str, model: str, extra: list[str]
+    backend: str, base_url: str, model: str, extra: list[str], token: str = "local"
 ) -> list[str]:
     return [
         "hermes",
         "chat",
         "--provider",
-        "main",
+        "custom",
+        "--base-url",
+        f"{base_url}/v1",
+        "--api-key",
+        token,
         "--model",
         model,
         *extra,
@@ -365,6 +441,7 @@ def hermes_environment(
     env: dict[str, str], backend: str, base_url: str, token: str
 ) -> dict[str, str]:
     result = env.copy()
+    result["HERMES_HOME"] = str(get_paths()["hermes"])
     result["OPENAI_BASE_URL"] = f"{base_url}/v1"
     result["OPENAI_API_KEY"] = token
     result["HERMES_STREAM_READ_TIMEOUT"] = env.get(
@@ -403,6 +480,8 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     paths = get_paths()
     print(f"llm {VERSION}")
     print(f"LLM_ROOT: {paths['llm_root']}")
+    print(f"Python:   {sys.executable}")
+    print(f"Venv:     {paths['venv']} ({'active' if Path(sys.prefix).resolve() == paths['venv'].resolve() else 'inactive'})")
     writable = os.access(paths["llm_root"], os.W_OK)
     print(f"{'ok' if writable else 'FAIL':4s}  external data root is writable")
 
@@ -490,6 +569,10 @@ def cmd_start(args: argparse.Namespace) -> int:
     if args.context:
         env["N_CTX"] = str(args.context)
 
+    if backend == "ollama" and _backend_status(env)["ollama"]["reachable"]:
+        selected = _choose_model(backend, env, paths, args.model)
+        return _warm_ollama_model(env, selected)
+
     print(f"Starting {backend}" + (f" with {model}" if model else ""))
     if backend == "llama-cpp":
         script = REPO_ROOT / "scripts/llama-cpp/claude-server.sh"
@@ -514,6 +597,16 @@ def cmd_start(args: argparse.Namespace) -> int:
 def _launch_claude(
     env: dict[str, str], backend: str | None, model: str | None, extra: list[str]
 ) -> int:
+    if backend in (None, "ollama"):
+        proxy_env = env.copy()
+        proxy_env["OLLAMA_BASE"] = env.get(
+            "OLLAMA_BASE_URL", "http://127.0.0.1:11434"
+        ).rstrip("/")
+        try:
+            _ensure_anthropic_proxy(proxy_env)
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     command = [REPO_ROOT / "scripts/claude/claude-local.sh"]
     if backend:
         command += ["--backend", backend]
@@ -525,7 +618,7 @@ def _launch_claude(
 
 def cmd_claude(args: argparse.Namespace) -> int:
     return _launch_claude(
-        _configured_env(), args.backend, args.model, list(args.claude_args)
+        _configured_env(), args.backend, args.model, _passthrough(args.claude_args)
     )
 
 
@@ -554,7 +647,7 @@ def cmd_codex(args: argparse.Namespace) -> int:
         args.backend,
         args.model,
         args.context,
-        list(args.agent_args),
+        _passthrough(args.agent_args),
     )
 
 
@@ -572,13 +665,13 @@ def _launch_hermes(
         print(f"error: {exc}", file=sys.stderr)
         return 2
     hermes_env = hermes_environment(env, backend, base_url, token)
-    command = _hermes_command(backend, base_url, model, extra)
+    command = _hermes_command(backend, base_url, model, extra, token)
     return _run(command, hermes_env)
 
 
 def cmd_hermes(args: argparse.Namespace) -> int:
     return _launch_hermes(
-        _configured_env(), args.backend, args.model, list(args.agent_args)
+        _configured_env(), args.backend, args.model, _passthrough(args.agent_args)
     )
 
 
@@ -636,15 +729,35 @@ def cmd_agent(args: argparse.Namespace) -> int:
 
     print(f"Launching {AGENTS[agent]} with {backend}/{model}")
     if agent == "claude":
-        return _launch_claude(env, backend, model, list(args.agent_args))
+        return _launch_claude(env, backend, model, _passthrough(args.agent_args))
     if agent == "codex":
-        return _launch_codex(env, backend, model, 32768, list(args.agent_args))
-    return _launch_hermes(env, backend, model, list(args.agent_args))
+        return _launch_codex(env, backend, model, 32768, _passthrough(args.agent_args))
+    return _launch_hermes(env, backend, model, _passthrough(args.agent_args))
 
 
 def cmd_build(args: argparse.Namespace) -> int:
     env = _configured_env()
-    if args.target == "llama-cpp":
+    target = args.target
+    if not target:
+        try:
+            target = _prompt_choice(
+                "Choose what to build",
+                [("llama-cpp", "llama.cpp")],
+            )
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    if target == "llama-cpp":
+        if not shutil.which("cmake", path=env.get("PATH")):
+            print(
+                "CMake is not installed. Install it with:\n"
+                "  sudo apt update && sudo apt install -y cmake build-essential",
+                file=sys.stderr,
+            )
+            return 2
+        if args.cuda in (None, "auto", "ON") and not shutil.which("nvcc", path=env.get("PATH")):
+            print("CUDA compiler nvcc was not found; the build will be CPU-only.", file=sys.stderr)
+            print("For CUDA: sudo apt install -y nvidia-cuda-toolkit", file=sys.stderr)
         command = [REPO_ROOT / "scripts/setup/build-llama-cpp.sh"]
         if args.dry_run:
             command.append("--dry-run")
@@ -658,15 +771,25 @@ def cmd_install(args: argparse.Namespace) -> int:
     env = _configured_env()
     paths = get_paths()
     if args.target == "vllm":
-        venv = paths["venvs"] / "vllm"
-        if not venv.exists():
-            code = _run([sys.executable, "-m", "venv", venv], env)
-            if code:
-                return code
-        code = _run([venv / "bin" / "python", "-m", "pip", "install", "--upgrade", "pip"], env)
-        if code:
-            return code
-        return _run([venv / "bin" / "python", "-m", "pip", "install", "vllm"], env)
+        if Path(sys.prefix).resolve() != paths["venv"].resolve():
+            print(
+                f"Activate the managed environment first: source {paths['venv']}/bin/activate",
+                file=sys.stderr,
+            )
+            return 3
+        pip_check = subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            capture_output=True,
+            text=True,
+        )
+        if pip_check.returncode != 0:
+            print(
+                f"pip is not installed in {paths['venv']}. "
+                "Run: sudo apt install python3.12-venv, then recreate the venv.",
+                file=sys.stderr,
+            )
+            return 3
+        return _run([sys.executable, "-m", "pip", "install", "vllm"], env)
     if args.target == "ollama":
         return _run([REPO_ROOT / "scripts/setup/install-ollama.sh"], env)
     if args.target == "strata":
@@ -820,7 +943,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--backend", choices=("llama-cpp", "vllm", "strata", "ollama")
     )
     agent.add_argument("--model")
-    agent.add_argument("agent_args", nargs=argparse.REMAINDER)
     agent.set_defaults(func=cmd_agent)
 
     claude = sub.add_parser("claude", help="launch Claude Code against a local backend")
@@ -843,7 +965,7 @@ def build_parser() -> argparse.ArgumentParser:
     hermes.set_defaults(func=cmd_hermes)
 
     build = sub.add_parser("build", help="build a local inference engine")
-    build.add_argument("target", choices=("llama-cpp",))
+    build.add_argument("target", nargs="?", choices=("llama-cpp",))
     build.add_argument("--cuda", choices=("auto", "ON", "OFF"), default=None)
     build.add_argument("--dry-run", action="store_true")
     build.set_defaults(func=cmd_build)
@@ -856,7 +978,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    venv_error = _require_managed_venv()
+    if venv_error is not None:
+        return venv_error
+    values = list(sys.argv[1:] if argv is None else argv)
+    agent_args = []
+    if values and values[0] == "agent" and "--" in values:
+        separator = values.index("--")
+        agent_args = values[separator + 1 :]
+        values = values[:separator]
+    args = build_parser().parse_args(values)
+    if args.command == "agent":
+        args.agent_args = agent_args
     return args.func(args)
 
 

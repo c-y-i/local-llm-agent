@@ -13,11 +13,12 @@ Install vLLM in an isolated Python environment:
 
 ```bash
 llm install vllm
-source "$HOME/LLM/venvs/vllm/bin/activate"
+source "$HOME/LLM/.venv/bin/activate"
 python -m pip install --upgrade pip
 ```
 
-`llm` uses `LLM_VENVS_DIR`, not the repository, for the virtual environment.
+`llm` uses the single managed `LLM_VENV_DIR`, not the repository, for its
+virtual environment.
 Customize `LLM_ROOT` in `.env` if that location should be different.
 
 Check the installation:

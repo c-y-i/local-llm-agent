@@ -11,6 +11,7 @@
 
 ```bash
 ./scripts/setup/install-llm.sh
+source .venv/bin/activate
 llm
 llm setup
 llm start
@@ -20,6 +21,17 @@ llm build llama-cpp
 llm install vllm
 llm claude --backend llama-cpp --model qwen3.5-4b
 ```
+
+同时安装了直接启动本地 Agent 的命令：
+
+```bash
+source .venv/bin/activate
+claude-local
+codex-local
+hermes-local
+```
+
+模型启动、安装和状态查看继续使用 `llm`。
 
 复制 `.env.example` 为 `.env` 即可自定义 `LLM_ROOT` 或其他目录。
 
@@ -72,7 +84,7 @@ llm
 
 ```bash
 llm start             # 终端 1
-llm agent claude      # 终端 2
+claude-local          # 终端 2
 ```
 
 省略 `--backend` 时会自动检测 llama.cpp、vLLM、Strata 和 Ollama proxy：
@@ -86,7 +98,7 @@ llm agent claude      # 终端 2
 ### Codex
 
 ```bash
-llm agent codex
+codex-local
 ```
 
 Codex 自定义 provider 使用 Responses API，启动器会自动完成配置。
@@ -94,7 +106,7 @@ Codex 自定义 provider 使用 Responses API，启动器会自动完成配置�
 ### Hermes
 
 ```bash
-llm agent hermes
+hermes-local
 ```
 
 Hermes 通过自定义 OpenAI 兼容 provider 连接。
@@ -146,7 +158,7 @@ python3 monitor.py
   llama.cpp/           # llama.cpp 源码与构建
   huggingface/         # Hugging Face / vLLM 缓存
   strata/              # Strata 应用状态
-  venvs/               # Python 虚拟环境
+  .venv/               # llm 必需的受管理 Python 虚拟环境
   run/                 # 运行状态与日志
 
 ~/Projects/local-llm-agent/  # 轻量 Git 仓库

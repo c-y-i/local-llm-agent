@@ -24,7 +24,7 @@ from socketserver import ThreadingMixIn
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
-OLLAMA_BASE = "http://localhost:11434"
+OLLAMA_BASE = os.getenv("OLLAMA_BASE", "http://localhost:11434")
 ENABLE_INTENT_ROUTER = os.getenv("CLAUDE_PROXY_ENABLE_INTENT_ROUTER", "1") not in {"0", "false", "False", "no"}
 LOCAL_GUARDRAIL = """Local Claude Code model rules:
 - Use tools only when the user asks you to inspect files, edit files, run commands, or gather workspace state.
@@ -414,7 +414,24 @@ def is_smalltalk(text: str) -> bool:
 
 
 def add_local_guardrail(messages: list[dict]) -> None:
-    messages.append({"role": "system", "content": LOCAL_GUARDRAIL})
+    # Qwen3.5's chat template requires every system message to precede the
+    # conversation. Insert after an existing leading system block, not at EOF.
+    if messages and messages[0].get("role") == "system":
+        messages[0]["content"] = (
+            str(messages[0].get("content", "")).rstrip() + "\n\n" + LOCAL_GUARDRAIL
+        )
+    else:
+        messages.insert(0, {"role": "system", "content": LOCAL_GUARDRAIL})
+
+
+def normalize_system_messages(messages: list[dict]) -> list[dict]:
+    """Some Anthropic clients interleave system blocks; Qwen requires them first."""
+    system = [msg for msg in messages if msg.get("role") == "system"]
+    conversation = [msg for msg in messages if msg.get("role") != "system"]
+    if not system:
+        return conversation
+    merged = "\n\n".join(str(msg.get("content", "")) for msg in system if msg.get("content"))
+    return [{"role": "system", "content": merged}] + conversation
 
 
 def anthropic_to_openai(body: dict) -> dict:
@@ -488,6 +505,7 @@ def anthropic_to_openai(body: dict) -> dict:
             },
         })
 
+    messages = normalize_system_messages(messages)
     model = ollama_model_for(body)
     if model_needs_no_think(model):
         add_no_think(messages)

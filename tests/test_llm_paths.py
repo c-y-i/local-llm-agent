@@ -50,6 +50,7 @@ class TestLLMCTL(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = os.environ.copy()
             env["LLM_ROOT"] = tmp
+            env["LLM_SKIP_VENV_CHECK"] = "1"
             result = subprocess.run(
                 [str(ROOT / "llm"), "paths", "--json"],
                 capture_output=True,
@@ -67,6 +68,7 @@ class TestLLMCTL(unittest.TestCase):
             [str(ROOT / "llm"), "--help"],
             capture_output=True,
             text=True,
+            env={**os.environ, "LLM_SKIP_VENV_CHECK": "1"},
             timeout=10,
         )
         self.assertEqual(result.returncode, 0)
@@ -89,6 +91,7 @@ class TestLLMCTL(unittest.TestCase):
             [str(ROOT / "llm")],
             capture_output=True,
             text=True,
+            env={**os.environ, "LLM_SKIP_VENV_CHECK": "1"},
             timeout=10,
         )
         self.assertEqual(result.returncode, 2)
@@ -136,14 +139,18 @@ class TestLLMCTL(unittest.TestCase):
         self.assertEqual(
             command,
             [
-                "codex",
-                "--oss",
-                "--local-provider",
                 "ollama",
+                "launch",
+                "codex",
                 "--model",
                 "qwen3.5:4b",
+                "--",
             ],
         )
+        env = llm_cli.codex_environment(
+            {"HOME": "/home/test"}, "ollama", "http://127.0.0.1:11434", "local", "qwen"
+        )
+        self.assertTrue(env["CODEX_HOME"].endswith("/codex-local"))
 
     def test_hermes_uses_custom_openai_provider(self):
         env = llm_cli.hermes_environment(
@@ -154,13 +161,18 @@ class TestLLMCTL(unittest.TestCase):
         )
         self.assertEqual(env["OPENAI_BASE_URL"], "http://127.0.0.1:8080/v1")
         self.assertEqual(env["OPENAI_API_KEY"], "local")
+        self.assertTrue(env["HERMES_HOME"].endswith("/hermes-local"))
         self.assertEqual(
             command,
             [
                 "hermes",
                 "chat",
                 "--provider",
-                "main",
+                "custom",
+                "--base-url",
+                "http://127.0.0.1:8080/v1",
+                "--api-key",
+                "local",
                 "--model",
                 "local-coder",
             ],

@@ -36,8 +36,22 @@ llm agent
 
 ```bash
 ./scripts/setup/install-llm.sh
+source .venv/bin/activate
 llm --version
 ```
+
+每个新 shell 都必须先激活受管理的虚拟环境。
+
+安装器还会创建直接启动本地 Agent 的命令：
+
+```bash
+claude-local
+codex-local
+hermes-local
+```
+
+它们内部调用 `llm agent <name>`，因此与 `llm` 使用相同的后端、模型选择和
+隔离配置。
 
 ## 存储路径
 
@@ -70,7 +84,7 @@ llm install vllm
 llm install ollama
 ```
 
-vLLM 会安装在 `~/LLM/venvs/vllm`，不会写入 Git 仓库。
+vLLM 会安装在 `~/LLM/.venv`，不会写入 Git 仓库。
 
 ## 启动模型
 
@@ -94,6 +108,13 @@ llm agent hermes
 ```
 
 `llm agent` 会自动读取当前后端和模型；如果有多个后端在运行，会提示选择。
+
+需要传递 Agent 自身参数时，在这些参数前加 `--`：
+
+```bash
+llm agent hermes --model qwen3.5-4b-official:latest -- \
+  -q "Reply with exactly READY" --oneshot -Q
+```
 
 ## Claude Code
 
