@@ -16,10 +16,15 @@ llama.cpp 是主要后端，Ollama 是辅助后端和共享模型存储。vLLM �
 - 对应 Agent 的 CLI：Claude Code、Codex CLI 或 Hermes
 - 使用 NVIDIA 加速时需要驱动和可用的 CUDA 构建
 
+当前基准机器为 Intel Core i7-12700F、31 GiB 内存和 12 GB 显存的
+NVIDIA GeForce RTX 3060。
+
 ```bash
 ./scripts/setup/check-prereqs.sh
 llm doctor
 ```
+
+Windows 原生安装见 [`windows.zh-CN.md`](windows.zh-CN.md)。
 
 ## 存储
 
@@ -40,7 +45,6 @@ llm doctor
 ## llama.cpp
 
 ```bash
-source .venv/bin/activate
 llm build llama-cpp
 llm build llama-cpp --cuda OFF
 llm start llama-cpp qwen3.5-4b-official-Q4_K_M

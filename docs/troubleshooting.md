@@ -10,13 +10,23 @@ llm status
 llm models
 ```
 
+Windows-native equivalents:
+
+```powershell
+.\llm.cmd doctor
+.\llm.cmd status
+.\llm.cmd models
+```
+
+See [`windows.md`](windows.md) for installation and launcher details.
+
 ## `llm` Says The Managed Environment Is Missing
 
 The command re-executes itself inside the managed virtualenv automatically.
 If that environment is missing, recreate it:
 
 ```bash
-/home/cy/Projects/local-llm-agent/scripts/setup/install-llm.sh
+"$HOME/Projects/local-llm-agent/scripts/setup/install-llm.sh"
 ```
 
 The `claude-local`, `codex-local`, and `hermes-local` commands use the same
@@ -57,18 +67,18 @@ curl -s http://127.0.0.1:8080/props
 Then check Hermes configuration:
 
 ```bash
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config get model.context_length --json
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config get model.ollama_num_ctx --json
 ```
 
 Remove a conflicting pin and restart Hermes:
 
 ```bash
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.context_length
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.ollama_num_ctx
 ```
 

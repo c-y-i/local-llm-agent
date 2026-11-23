@@ -4,8 +4,8 @@
 
 ## 已验证模型
 
-下列模型只是用于验证 6 GB 参考笔记本的示例，不是强制目录、唯一选择或性能
-上限。显存和内存更大的机器可以运行更大、更强的 GGUF 模型。
+下列模型是在当前 RTX 3060 12 GB 基准机器上验证的示例，不是强制目录、
+唯一选择或性能上限。
 
 | 模型 | 本地文件 | 大小 | 用途 |
 |---|---|---:|---|
@@ -17,9 +17,19 @@
 | Huihui Qwen3.5-2B abliterated F16 | `huihui-qwen3.5-2b-abliterated-f16.gguf` | 3.8 GB | llama.cpp 高精度 GGUF，默认保守 32K 上下文 |
 | Huihui Qwen3.5-4B abliterated | Ollama 标签 `huihui_ai/qwen3.5-abliterated:4b-agent` | 3.3 GB | Agent 就绪的无审查 Ollama 模型，32K 上下文 |
 
-在测试用 6 GB GPU 上，Qwen3.5-4B 是本地编码 Agent 的默认建议。
-Qwen3.5-2B 适合更重视速度或上下文大小的场景。用户应根据自己的硬件档位和
-质量需求选择模型，而不必局限于这些示例。
+### 12 GB 显存上的 14B 选项
+
+| 模型 | 本地文件 | 大小 | 启动方式 |
+|---|---|---:|---|
+| DeepSeek-R1-Distill-Qwen-14B Q4_K_M | `DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf` | 8.4 GB | 40 层 GPU，64K 上下文，KV cache 在内存 |
+| Qwen3.5-14B-A3B reasoning-distilled Q4_K_M | `Qwen3.5-14B-A3B-Claude-4.6-Reasoning-Q4_K_M.gguf` | 8.1 GB | 全部层 GPU，64K 上下文 |
+
+第二个模型是第三方 Claude-4.6 推理蒸馏版本，不是 Qwen 官方发布。两个模型均
+通过 `codex-local`、`claude-local` 和 `hermes-local` 的端到端推理测试。
+
+Qwen3.5-4B 是速度优先的本地编码默认模型。Qwen3.5-9B 和已验证的 14B
+模型在 12 GB 显存、31 GiB 内存允许时提供更高能力。Qwen3.5-2B 仍适合
+更重视速度或上下文大小的场景。
 
 官方兼容 GGUF 下载：
 

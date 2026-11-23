@@ -8,12 +8,15 @@
 
 ```bash
 ./scripts/setup/install-llm.sh
-source .venv/bin/activate
 llm --version
 ```
 
-`llm` 需要受管理的虚拟环境。安装后的 `claude-local`、`codex-local` 和
-`hermes-local` 会自动激活它。
+`llm` 以及 `claude-local`、`codex-local` 和 `hermes-local` 会自动使用
+受管理的虚拟环境。
+
+Windows 上使用 `.\llm.cmd` 和 `.\claude-local.cmd`，或将
+`%USERPROFILE%\.local\bin` 加入 PATH 后直接使用安装后的命令。详见
+[`windows.zh-CN.md`](windows.zh-CN.md)。
 
 ## 主菜单
 

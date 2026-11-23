@@ -156,6 +156,10 @@ class TestLLMCTL(unittest.TestCase):
             with patch.object(
                 llm_cli.subprocess, "Popen", return_value=process
             ) as popen, patch.object(
+                llm_cli,
+                "_llama_server_command",
+                return_value=["llama-server"],
+            ), patch.object(
                 llm_cli.urllib.request, "urlopen", return_value=response
             ), patch.object(
                 llm_cli,

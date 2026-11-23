@@ -15,6 +15,10 @@ llm --version
 `llm` and the installed `claude-local`, `codex-local`, and `hermes-local`
 commands activate the managed virtualenv automatically.
 
+On Windows use `.\llm.cmd` and `.\claude-local.cmd` (or the installed
+commands after adding `%USERPROFILE%\.local\bin` to PATH). See
+[`windows.md`](windows.md).
+
 ## Main Menu
 
 ```bash

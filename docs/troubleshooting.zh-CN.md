@@ -10,15 +10,31 @@ llm status
 llm models
 ```
 
-## `llm` 提示虚拟环境未激活
+Windows 原生命令：
 
-`llm` 仍然需要显式激活：
-
-```bash
-source /home/cy/Projects/local-llm-agent/.venv/bin/activate
+```powershell
+.\llm.cmd doctor
+.\llm.cmd status
+.\llm.cmd models
 ```
 
-`claude-local`、`codex-local` 和 `hermes-local` 会自动激活，可在任意目录运行。
+安装和启动器说明见 [`windows.zh-CN.md`](windows.zh-CN.md)。
+
+## `llm` 提示受管理虚拟环境缺失
+
+`llm` 会自动切换到受管理的虚拟环境。若该环境不存在，请重新运行：
+
+```bash
+"$HOME/Projects/local-llm-agent/scripts/setup/install-llm.sh"
+```
+
+Windows 请运行：
+
+```powershell
+.\scripts\setup\install-llm.ps1 -AddToPath
+```
+
+`claude-local`、`codex-local` 和 `hermes-local` 使用同一环境，可在任意目录运行。
 
 ## Ollama 显示 `ready` 但没有活动模型
 
@@ -51,9 +67,9 @@ curl -s http://127.0.0.1:8080/props
 删除冲突设置并重启 Hermes：
 
 ```bash
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.context_length
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.ollama_num_ctx
 ```
 

@@ -8,17 +8,18 @@ small configuration files; model weights and runtime state live outside Git.
 
 ## Reference Setup And Tested Agents
 
-The reference setup is an RTX 3050 Laptop GPU with 6 GB VRAM. The current
-workflow has been tested end to end there with:
+The current benchmark machine is an Intel Core i7-12700F with 31 GiB RAM and
+an NVIDIA RTX 3060 with 12 GB VRAM. The workflow is tested end to end there
+with:
 
 - Claude Code
 - Codex CLI
 - Hermes Agent
 
-The shared tested backend was llama.cpp with official Qwen3.5-4B Q4_K_M.
-Hermes was also verified with official Qwen3.5-2B, including large context
-windows. These models are examples for this hardware tier, not requirements.
-Machines with more VRAM and RAM can run larger and stronger models.
+The shared tested backend is llama.cpp. The main daily model is Qwen3.5-4B,
+while Qwen3.5-14B, DeepSeek-R1-Distill-Qwen-14B, and larger sparse Ollama
+models are available for higher-quality or reasoning work. These models are
+examples for this hardware tier, not requirements.
 
 ## Current Scope
 
@@ -29,6 +30,7 @@ Machines with more VRAM and RAM can run larger and stronger models.
 | Claude Code | Tested | llama.cpp native, Ollama through proxy |
 | Codex CLI | Tested | llama.cpp Responses provider |
 | Hermes Agent | Tested | OpenAI-compatible endpoint |
+| Windows 10/11 x64 | Supported | llama.cpp, Ollama, and all agents natively |
 | vLLM | Deferred | Not part of the current hardware workflow |
 | Strata | Deferred | Not part of the current hardware workflow |
 
@@ -45,6 +47,15 @@ llm --version
 
 The `llm` command and the direct agent commands activate the managed Python
 environment automatically.
+
+Windows users can use the native PowerShell workflow:
+
+```powershell
+.\scripts\setup\install-llm.ps1 -AddToPath
+.\llm.cmd doctor
+```
+
+See [`docs/windows.md`](docs/windows.md).
 
 ## Quick Start
 
@@ -101,8 +112,9 @@ the active backend automatically.
 ## Model Inventory
 
 The CLI works with any compatible GGUF model. The models mentioned in these
-docs are examples used to validate the workflow on the reference laptop; users
-should choose a model that fits their own hardware and quality requirements.
+docs are examples used to validate the workflow on the current benchmark
+machine; users should choose a model that fits their own hardware and quality
+requirements.
 
 ```bash
 llm models
@@ -147,6 +159,7 @@ allows a custom value. Higher context consumes more VRAM or system RAM. See
 | [`docs/backends.md`](docs/backends.md) | llama.cpp, Ollama, storage, and lifecycle |
 | [`docs/models.md`](docs/models.md) | Tested models and recommendations |
 | [`docs/context-memory.md`](docs/context-memory.md) | Context windows and KV cache |
+| [`docs/windows.md`](docs/windows.md) | Native Windows setup, PowerShell scripts, and `.cmd` launchers |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures and diagnosis |
 
 Screenshots and media are intentionally omitted until the CLI presentation is

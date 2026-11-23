@@ -4,8 +4,8 @@ English | [简体中文](agents.zh-CN.md)
 
 ## Tested
 
-The following paths were tested locally on an RTX 3050 Laptop GPU with 6 GB
-VRAM:
+The following paths were tested locally on a 31 GiB RAM workstation with an
+NVIDIA RTX 3060 12 GB GPU:
 
 | Agent | llama.cpp | Ollama | Verified |
 |---|---|---|---|
@@ -13,8 +13,9 @@ VRAM:
 | Codex CLI | OpenAI Responses API | Built-in integration | Yes |
 | Hermes Agent | OpenAI Chat Completions | Native | Yes |
 
-The shared end-to-end test used official Qwen3.5-4B Q4_K_M on llama.cpp.
-Hermes was also verified with official Qwen3.5-2B and large context windows.
+The shared end-to-end tests used Qwen3.5-4B, Qwen3.5-14B, and
+DeepSeek-R1-Distill-Qwen-14B on llama.cpp. Ollama was also tested with
+Qwen3.5-9B, including tool execution.
 
 ## Direct Commands
 
@@ -34,10 +35,13 @@ These commands:
 - wait for the model server to become healthy before launching the agent.
 
 Background llama.cpp logs are written to `$LLM_ROOT/run/llama-server.log`.
+On Windows the same path is available through PowerShell and the `.cmd`
+launchers documented in [`windows.md`](windows.md).
 
 ## Claude Code
 
-llama.cpp exposes the Anthropic Messages API directly:
+The launcher starts the local Anthropic compatibility proxy and points Claude
+Code at the active llama.cpp or Ollama model:
 
 ```bash
 claude-local
@@ -95,9 +99,9 @@ Hermes gives those values priority and may clamp a 256K server down to 64K.
 with:
 
 ```bash
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.context_length
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.ollama_num_ctx
 ```
 

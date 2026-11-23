@@ -11,6 +11,11 @@ ENV_FILE = REPO_ROOT / ".env"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 
 _PARAM_EXPANSION = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):-([^}]*)\}")
+_ENV_EXPANSION = re.compile(
+    r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
+    r"|\$([A-Za-z_][A-Za-z0-9_]*)"
+    r"|%([A-Za-z_][A-Za-z0-9_]*)%"
+)
 
 
 def _expand(value: str) -> str:
@@ -22,7 +27,13 @@ def _expand(value: str) -> str:
     while previous != value:
         previous = value
         value = _PARAM_EXPANSION.sub(replace, value)
-    return os.path.expandvars(os.path.expanduser(value))
+
+    def replace_env(match: re.Match[str]) -> str:
+        name = next(group for group in match.groups() if group)
+        return os.environ.get(name, match.group(0))
+
+    value = _ENV_EXPANSION.sub(replace_env, value)
+    return os.path.expanduser(value)
 
 
 def load_env_file(path: Path = ENV_FILE) -> None:

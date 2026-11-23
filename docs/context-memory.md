@@ -39,8 +39,8 @@ more memory and reduce cache headroom:
 - 16K-32K: conservative, fast, good for small edits.
 - 64K: practical default for Qwen3.5-4B coding work.
 - 128K: useful for broader repository work or long sessions.
-- 256K: experimental on this hardware; expect slower prefill and high memory
-  pressure.
+- 256K: experimental on the 12 GB RTX 3060; expect slower prefill and high
+  memory pressure.
 
 Qwen3.5-2B has a native 262,144-token limit. It was verified at 128K with the
 KV cache on the GPU and at 256K with `KV_OFFLOAD=0`.

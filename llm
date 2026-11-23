@@ -79,7 +79,7 @@ OLLAMA_CONTEXT_PROFILES = (
 
 
 def _run(args: list[str], env: dict[str, str] | None = None) -> int:
-    command = [str(arg) for arg in args]
+    command = _normalized_command([str(arg) for arg in args], env)
     print("+ " + " ".join(command), file=sys.stderr)
     try:
         result = subprocess.run(command, cwd=Path.cwd(), env=env)
@@ -89,6 +89,224 @@ def _run(args: list[str], env: dict[str, str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 127
     return result.returncode
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
+def _normalized_command(
+    command: list[str], env: dict[str, str] | None = None
+) -> list[str]:
+    if not command:
+        return command
+    values = list(command)
+    resolved = shutil.which(values[0], path=(env or os.environ).get("PATH"))
+    if resolved:
+        values[0] = resolved
+    if _is_windows() and Path(values[0]).suffix.lower() in {".cmd", ".bat"}:
+        comspec = (env or os.environ).get("COMSPEC", "cmd.exe")
+        return [comspec, "/d", "/s", "/c", f'"{values[0]}"', *values[1:]]
+    return values
+
+
+def _venv_python(venv: Path) -> Path:
+    if _is_windows():
+        return venv / "Scripts" / "python.exe"
+    return venv / "bin" / "python"
+
+
+def _process_exists(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if _is_windows():
+        try:
+            result = subprocess.run(
+                [
+                    "tasklist",
+                    "/FI",
+                    f"PID eq {pid}",
+                    "/FO",
+                    "CSV",
+                    "/NH",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return f'"{pid}"' in result.stdout
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _terminate_process(pid: int) -> None:
+    if pid <= 0:
+        return
+    if _is_windows():
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            timeout=15,
+        )
+        return
+    os.kill(pid, signal.SIGTERM)
+
+
+def _detached_process_kwargs() -> dict[str, object]:
+    if _is_windows():
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _read_pid(path: Path) -> int | None:
+    try:
+        pid = int(path.read_text().strip())
+    except (OSError, ValueError):
+        return None
+    return pid if _process_exists(pid) else None
+
+
+def _tail_file(path: Path, lines: int, follow: bool) -> int:
+    try:
+        text = path.read_text(errors="replace")
+    except OSError as exc:
+        print(f"error: could not read {path}: {exc}", file=sys.stderr)
+        return 2
+    initial = text.splitlines(keepends=True)
+    for line in initial[-lines:]:
+        print(line, end="")
+    if not follow:
+        return 0
+    try:
+        with path.open("r", errors="replace") as handle:
+            handle.seek(0, os.SEEK_END)
+            while True:
+                chunk = handle.read()
+                if chunk:
+                    print(chunk, end="", flush=True)
+                else:
+                    time.sleep(0.5)
+    except KeyboardInterrupt:
+        return 0
+    except OSError as exc:
+        print(f"error: could not follow {path}: {exc}", file=sys.stderr)
+        return 2
+
+
+def _llama_server_candidates(
+    env: dict[str, str], paths: dict[str, Path]
+) -> list[Path]:
+    suffix = ".exe" if _is_windows() else ""
+    root = paths.get("llama_cpp", get_paths()["llama_cpp"])
+    candidates = [
+        root / "build" / "bin" / f"llama-server{suffix}",
+        root / "build" / "bin" / "Release" / f"llama-server{suffix}",
+        root / "build" / "bin" / "Release" / f"llama{suffix}",
+        root / f"llama-server{suffix}",
+        root / f"llama{suffix}",
+        Path.home() / ".llama-app" / f"llama{suffix}",
+        Path.home() / ".local" / "bin" / f"llama-server{suffix}",
+        Path.home() / ".local" / "bin" / f"llama{suffix}",
+    ]
+    for command in ("llama-server", "llama"):
+        found = shutil.which(command, path=env.get("PATH"))
+        if found:
+            candidates.append(Path(found))
+    return candidates
+
+
+def _find_llama_server(
+    env: dict[str, str], paths: dict[str, Path] | None = None
+) -> Path | None:
+    configured = env.get("LLAMA_SERVER_BIN")
+    if configured and Path(configured).is_file():
+        return Path(configured)
+    for candidate in _llama_server_candidates(env, paths or get_paths()):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _llama_chat_template(model: str, env: dict[str, str]) -> str | None:
+    if "CHAT_TEMPLATE" in env:
+        return env["CHAT_TEMPLATE"] or None
+    normalized = model.lower()
+    if "qwen3.5-14b" in normalized:
+        return None
+    if "qwen" in normalized:
+        return "chatml"
+    return None
+
+
+def _llama_server_command(
+    env: dict[str, str],
+    paths: dict[str, Path],
+    model: str,
+    port: int | None = None,
+) -> list[str]:
+    binary = _find_llama_server(env, paths)
+    if binary is None:
+        raise RuntimeError(
+            "llama-server was not found; run `llm build llama-cpp` or set "
+            "LLAMA_SERVER_BIN"
+        )
+    model_path = Path(model)
+    if not model_path.is_absolute():
+        model_path = paths.get("models", get_paths()["models"]) / (
+            model if model.lower().endswith(".gguf") else f"{model}.gguf"
+        )
+    if not model_path.is_file():
+        raise RuntimeError(f"model file not found: {model_path}")
+
+    command = [str(binary)]
+    if binary.stem.lower() == "llama":
+        command.append("serve")
+    host = env.get("LLAMA_CPP_HOST", "127.0.0.1")
+    selected_port = port or int(env.get("LLAMA_CPP_PORT", "8080"))
+    command.extend(
+        [
+            "-m",
+            str(model_path),
+            "--alias",
+            model_path.stem,
+            "-ngl",
+            str(env.get("N_GPU_LAYERS", "999")),
+            "-c",
+            str(env.get("N_CTX", "16384")),
+            "-np",
+            str(env.get("N_PARALLEL", "1")),
+            "--temp",
+            str(env.get("TEMP", "0.2")),
+            "--top-p",
+            str(env.get("TOP_P", "0.9")),
+            "--repeat-penalty",
+            str(env.get("REPEAT_PENALTY", "1.1")),
+            "--host",
+            host,
+            "--port",
+            str(selected_port),
+        ]
+    )
+    if env.get("METRICS", "1").lower() not in {"0", "false"}:
+        command.append("--metrics")
+    if env.get("JINJA", "1").lower() not in {"0", "false"}:
+        command.append("--jinja")
+    template = _llama_chat_template(model, env)
+    if template:
+        command.extend(["--chat-template", template])
+    command.extend(["--flash-attn", env.get("FLASH_ATTN", "auto")])
+    cache_type = env.get("KV_CACHE_TYPE", "q8_0")
+    command.extend(["--cache-type-k", cache_type, "--cache-type-v", cache_type])
+    if env.get("KV_OFFLOAD", "1").lower() in {"0", "false"}:
+        command.append("--no-kv-offload")
+    if api_key := env.get("LLAMA_SERVER_API_KEY"):
+        command.extend(["--api-key", api_key])
+    return command
 
 
 def _passthrough(args) -> list[str]:
@@ -116,7 +334,7 @@ def _ensure_anthropic_proxy(env: dict[str, str]) -> None:
         if pid_path.is_file():
             try:
                 pid = int(pid_path.read_text().strip())
-                os.killpg(os.getpgid(pid), 15)
+                _terminate_process(pid)
                 time.sleep(0.5)
             except (OSError, ValueError):
                 pass
@@ -134,7 +352,7 @@ def _ensure_anthropic_proxy(env: dict[str, str]) -> None:
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            start_new_session=True,
+            **_detached_process_kwargs(),
         )
     pid_path.write_text(f"{process.pid}\n")
     backend_path.write_text(desired_backend + "\n")
@@ -156,9 +374,11 @@ def _configured_env() -> dict[str, str]:
         strata_bin = Path.home() / ".local" / "bin" / "strata"
         if strata_bin.is_file():
             env["STRATA_BIN"] = str(strata_bin)
-    llama_server = paths["llama_cpp"] / "build" / "bin" / "llama-server"
-    if llama_server.is_file():
+    llama_server = _find_llama_server(env, paths)
+    if llama_server is not None:
         env["LLAMA_SERVER_BIN"] = str(llama_server)
+    env.setdefault("LLAMA_CPP_HOST", "127.0.0.1")
+    env.setdefault("LLAMA_CPP_PORT", "8080")
     return env
 
 
@@ -170,7 +390,7 @@ def _require_managed_venv() -> int | None:
     active = Path(sys.prefix).resolve()
     if active == expected:
         return None
-    python = expected / "bin" / "python"
+    python = _venv_python(expected)
     if python.is_file() and os.environ.get("LLM_VENV_REEXEC") != "1":
         env = os.environ.copy()
         env["LLM_VENV_REEXEC"] = "1"
@@ -182,10 +402,17 @@ def _require_managed_venv() -> int | None:
             )
         except OSError:
             pass
-    activate = expected / "bin" / "activate"
+    activate = (
+        expected / "Scripts" / "Activate.ps1"
+        if _is_windows()
+        else expected / "bin" / "activate"
+    )
     print("The managed Python environment is not active.", file=sys.stderr)
     if activate.is_file():
-        print(f"Activate it with: source {activate}", file=sys.stderr)
+        if _is_windows():
+            print(f"Activate it with: & '{activate}'", file=sys.stderr)
+        else:
+            print(f"Activate it with: source {activate}", file=sys.stderr)
     else:
         print("Create it first with: ./scripts/setup/install-llm.sh", file=sys.stderr)
     return 3
@@ -392,8 +619,7 @@ def _prompt_choice(
 
 def _backend_installed(backend: str, env: dict[str, str]) -> bool:
     if backend == "llama-cpp":
-        binary = env.get("LLAMA_SERVER_BIN", "")
-        return bool(binary and Path(binary).is_file())
+        return _find_llama_server(env) is not None
     command = {
         "vllm": env.get("VLLM_BIN", "vllm"),
         "strata": env.get("STRATA_BIN", "strata"),
@@ -810,14 +1036,15 @@ def _start_managed_ollama(env: dict[str, str], paths: dict[str, Path]) -> bool:
     process_env.setdefault("OLLAMA_NUM_PARALLEL", "1")
     process_env.setdefault("OLLAMA_KEEP_ALIVE", "30m")
     print("Starting managed Ollama...", flush=True)
+    command = _normalized_command(["ollama", "serve"], process_env)
     with log_path.open("ab") as log:
         process = subprocess.Popen(
-            ["ollama", "serve"],
+            command,
             cwd=Path.cwd(),
             env=process_env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            start_new_session=True,
+            **_detached_process_kwargs(),
         )
     pid_path.write_text(f"{process.pid}\n")
 
@@ -859,7 +1086,13 @@ def _background_llama_model(
 
     log_path = paths["run"] / "llama-server.log"
     pid_path = paths["run"] / "llama-server.pid"
-    command = [REPO_ROOT / "scripts/llama-cpp/claude-server.sh", model]
+    try:
+        command = _normalized_command(
+            _llama_server_command(env, paths, model), env
+        )
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return False
     print(
         f"Starting {model} on llama.cpp "
         f"({int(env['N_CTX']) // 1024}K context)...",
@@ -867,12 +1100,12 @@ def _background_llama_model(
     )
     with log_path.open("ab") as log:
         process = subprocess.Popen(
-            [str(item) for item in command],
+            command,
             cwd=Path.cwd(),
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            start_new_session=True,
+            **_detached_process_kwargs(),
         )
     pid_path.write_text(f"{process.pid}\n")
 
@@ -905,6 +1138,8 @@ def _ensure_agent_model(env: dict[str, str], paths: dict[str, Path]) -> bool:
 
 
 def _llama_server_pids() -> list[int]:
+    if _is_windows():
+        return []
     pids = []
     for entry in Path("/proc").iterdir():
         if not entry.name.isdigit():
@@ -931,13 +1166,25 @@ def _llama_server_pids() -> list[int]:
 def _stop_tracked_llama(paths: dict[str, Path]) -> tuple[bool, str]:
     pid_path = paths["run"] / "llama-server.pid"
     pids = set(_llama_server_pids())
-    try:
-        pid = int(pid_path.read_text().strip())
-        command = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ")
-        if b"llama-server" in command or b"llama serve" in command:
-            pids.add(pid)
-    except (OSError, ValueError):
-        pid = None
+    tracked = _read_pid(pid_path)
+    if tracked is not None:
+        if _is_windows():
+            pids.add(tracked)
+        else:
+            try:
+                command = (
+                    Path(f"/proc/{tracked}/cmdline")
+                    .read_bytes()
+                    .replace(b"\0", b" ")
+                )
+                if (
+                    b"llama-server" in command
+                    or b"llama serve" in command
+                    or b"/llama" in command
+                ):
+                    pids.add(tracked)
+            except OSError:
+                pass
     if not pids:
         pid_path.unlink(missing_ok=True)
         return (
@@ -947,11 +1194,11 @@ def _stop_tracked_llama(paths: dict[str, Path]) -> tuple[bool, str]:
 
     for pid in pids:
         try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError as exc:
+            _terminate_process(pid)
+        except (OSError, subprocess.SubprocessError) as exc:
             return False, f"could not stop llama.cpp PID {pid}: {exc}"
     for _ in range(40):
-        if not _llama_server_pids():
+        if not any(_process_exists(pid) for pid in pids) and not _llama_server_pids():
             pid_path.unlink(missing_ok=True)
             return True, "stopped llama.cpp"
         time.sleep(0.25)
@@ -959,6 +1206,8 @@ def _stop_tracked_llama(paths: dict[str, Path]) -> tuple[bool, str]:
 
 
 def _ollama_serve_pids() -> list[int]:
+    if _is_windows():
+        return []
     pids = []
     for entry in Path("/proc").iterdir():
         if not entry.name.isdigit():
@@ -976,18 +1225,22 @@ def _ollama_serve_pids() -> list[int]:
 
 
 def _stop_managed_ollama(paths: dict[str, Path]) -> tuple[bool, str]:
-    pids = _ollama_serve_pids()
+    pid_path = paths["run"] / "ollama.pid"
+    pids = set(_ollama_serve_pids())
+    tracked = _read_pid(pid_path)
+    if tracked is not None:
+        pids.add(tracked)
     if not pids:
-        (paths["run"] / "ollama.pid").unlink(missing_ok=True)
+        pid_path.unlink(missing_ok=True)
         return True, "no managed Ollama process to stop"
     for pid in pids:
         try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError as exc:
+            _terminate_process(pid)
+        except (OSError, subprocess.SubprocessError) as exc:
             return False, f"could not stop Ollama PID {pid}: {exc}"
     for _ in range(40):
-        if not _ollama_serve_pids():
-            (paths["run"] / "ollama.pid").unlink(missing_ok=True)
+        if not any(_process_exists(pid) for pid in pids):
+            pid_path.unlink(missing_ok=True)
             return True, "stopped Ollama"
         time.sleep(0.25)
     return False, "Ollama did not stop cleanly"
@@ -1180,7 +1433,10 @@ def _configure_hermes_provider(
     for key, value in values.items():
         try:
             result = subprocess.run(
-                ["hermes", "config", "set", key, value, "--force"],
+                _normalized_command(
+                    ["hermes", "config", "set", key, value, "--force"],
+                    env,
+                ),
                 capture_output=True,
                 text=True,
                 env=env,
@@ -1262,8 +1518,8 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     writable = os.access(paths["llm_root"], os.W_OK)
     print(f"{'ok' if writable else 'FAIL':4s}  external data root is writable")
 
-    for command in (
-        "python3",
+    commands = [
+        "python" if _is_windows() else "python3",
         "git",
         "cmake",
         "nvidia-smi",
@@ -1274,9 +1530,15 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         "ollama",
         "vllm",
         "strata",
-    ):
+    ]
+    for command in commands:
         found = shutil.which(command, path=env.get("PATH"))
         print(f"{'ok' if found else 'miss':4s}  {command:12s} {found or ''}".rstrip())
+    llama_server = _find_llama_server(env, paths)
+    print(
+        f"{'ok' if llama_server else 'miss':4s}  "
+        f"{'llama-server':12s} {llama_server or ''}".rstrip()
+    )
 
     print("\nBackends")
     for backend, status in _backend_status(env).items():
@@ -1372,11 +1634,7 @@ def cmd_logs(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         return 2
-    command = ["tail", "-n", str(args.lines)]
-    if args.follow:
-        command.append("-f")
-    command.append(str(path))
-    return _run(command)
+    return _tail_file(path, args.lines, args.follow)
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -1504,7 +1762,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 "(Ctrl+C to return; model stays loaded)",
                 flush=True,
             )
-            return _run(["tail", "-n", "20", "-f", str(log_path)])
+            return _tail_file(log_path, 20, True)
         return result
 
     print(f"Starting {backend}" + (f" with {model}" if model else ""))
@@ -1512,17 +1770,32 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(f"  Context    : {context}")
         print(f"  GPU layers : {gpu_layers} (remaining layers use CPU/RAM)")
     if backend == "llama-cpp":
-        script = REPO_ROOT / "scripts/llama-cpp/claude-server.sh"
-        command = [script, model]
-        if args.port:
-            command.append(str(args.port))
+        try:
+            command = _llama_server_command(
+                env, paths, model or "", args.port
+            )
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         return _run(command, env)
     if backend == "vllm":
+        if _is_windows():
+            print(
+                "error: native Windows vLLM serving is not supported; use WSL2.",
+                file=sys.stderr,
+            )
+            return 2
         command = [REPO_ROOT / "scripts/vllm/serve.sh", model]
         if args.port:
             command.append(str(args.port))
         return _run(command, env)
     if backend == "strata":
+        if _is_windows():
+            print(
+                "error: native Windows Strata serving is not supported; use WSL2.",
+                file=sys.stderr,
+            )
+            return 2
         env["STRATA_FAMILY"] = args.family
         command = [REPO_ROOT / "scripts/strata/serve.sh", model]
         if args.port:
@@ -1534,37 +1807,71 @@ def cmd_start(args: argparse.Namespace) -> int:
 def _launch_claude(
     env: dict[str, str], backend: str | None, model: str | None, extra: list[str]
 ) -> int:
-    use_proxy = backend in (None, "ollama", "llama-cpp")
+    try:
+        backend = _select_backend(env, backend)
+        base_url, token = _backend_connection(env, backend)
+        model = model or _model_from_backend(env, backend)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    use_proxy = backend in {"ollama", "llama-cpp"}
     if use_proxy:
-        if (
-            backend == "llama-cpp"
-            and not env.get("CLAUDE_CODE_MAX_CONTEXT_TOKENS")
-            and (context_window := _served_context_window(env, backend))
-        ):
-            env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = str(context_window)
         proxy_env = env.copy()
-        if backend == "llama-cpp":
-            proxy_env["LOCAL_OPENAI_BASE"] = env.get(
-                "LLAMA_CPP_BASE_URL", "http://127.0.0.1:8080"
-            ).rstrip("/")
-        elif backend == "ollama":
-            proxy_env["LOCAL_OPENAI_BASE"] = env.get(
-                "OLLAMA_BASE_URL", "http://127.0.0.1:11434"
-            ).rstrip("/")
+        proxy_env["LOCAL_OPENAI_BASE"] = base_url
         try:
             _ensure_anthropic_proxy(proxy_env)
         except RuntimeError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
-        if backend is not None:
-            backend = "proxy"
-    command = [REPO_ROOT / "scripts/claude/claude-local.sh"]
-    if backend:
-        command += ["--backend", backend]
-    if model:
-        command += ["--model", model]
-    command += extra
-    return _run(command, env)
+        base_url = env.get(
+            "OLLAMA_PROXY_BASE_URL", "http://127.0.0.1:4000"
+        ).rstrip("/")
+        token = env.get("OLLAMA_PROXY_API_KEY", "local")
+
+    claude_env = env.copy()
+    claude_env.update(
+        {
+            "ANTHROPIC_BASE_URL": base_url,
+            "ANTHROPIC_AUTH_TOKEN": token,
+            "ANTHROPIC_API_KEY": token,
+            "ANTHROPIC_MODEL": model,
+            "ANTHROPIC_DEFAULT_OPUS_MODEL": model,
+            "ANTHROPIC_DEFAULT_SONNET_MODEL": model,
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": model,
+            "ANTHROPIC_DEFAULT_FABLE_MODEL": model,
+            "ANTHROPIC_SMALL_FAST_MODEL": model,
+            "ANTHROPIC_CUSTOM_MODEL_OPTION": model,
+            "ANTHROPIC_CUSTOM_MODEL_OPTION_NAME": f"{model} (local {backend})",
+            "ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION": (
+                f"Local model served by {backend} at {base_url}"
+            ),
+            "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": env.get(
+                "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "1"
+            ),
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": env.get(
+                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"
+            ),
+            "CLAUDE_CODE_ATTRIBUTION_HEADER": env.get(
+                "CLAUDE_CODE_ATTRIBUTION_HEADER", "0"
+            ),
+        }
+    )
+    if context_window := _served_context_window(env, backend):
+        claude_env.setdefault(
+            "CLAUDE_CODE_MAX_CONTEXT_TOKENS", str(context_window)
+        )
+    claude_env.setdefault("CLAUDE_CODE_MAX_CONTEXT_TOKENS", "32768")
+
+    print("Claude Code local backend:", file=sys.stderr)
+    print(f"  Backend : {backend}", file=sys.stderr)
+    print(f"  URL     : {base_url}", file=sys.stderr)
+    print(f"  Model   : {model}", file=sys.stderr)
+    print(
+        f"  Context : {claude_env['CLAUDE_CODE_MAX_CONTEXT_TOKENS']} tokens",
+        file=sys.stderr,
+    )
+    return _run(["claude", "--model", model, *extra], claude_env)
 
 
 def cmd_claude(args: argparse.Namespace) -> int:
@@ -1727,18 +2034,38 @@ def cmd_build(args: argparse.Namespace) -> int:
             return 2
     if target == "llama-cpp":
         if not shutil.which("cmake", path=env.get("PATH")):
-            print(
-                "CMake is not installed. Install it with:\n"
-                "  sudo apt update && sudo apt install -y cmake build-essential",
-                file=sys.stderr,
-            )
+            if _is_windows():
+                hint = "  winget install --id Kitware.CMake -e"
+            else:
+                hint = "  sudo apt update && sudo apt install -y cmake build-essential"
+            print(f"CMake is not installed. Install it with:\n{hint}", file=sys.stderr)
             return 2
         if args.cuda in (None, "auto", "ON") and not shutil.which("nvcc", path=env.get("PATH")):
             print("CUDA compiler nvcc was not found; the build will be CPU-only.", file=sys.stderr)
-            print("For CUDA: sudo apt install -y nvidia-cuda-toolkit", file=sys.stderr)
-        command = [REPO_ROOT / "scripts/setup/build-llama-cpp.sh"]
-        if args.dry_run:
-            command.append("--dry-run")
+            if _is_windows():
+                print(
+                    "For CUDA: install the NVIDIA CUDA Toolkit and Visual Studio "
+                    "C++ build tools.",
+                    file=sys.stderr,
+                )
+            else:
+                print("For CUDA: sudo apt install -y nvidia-cuda-toolkit", file=sys.stderr)
+        if _is_windows():
+            powershell = shutil.which("pwsh") or "powershell.exe"
+            command = [
+                powershell,
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(REPO_ROOT / "scripts/setup/build-llama-cpp.ps1"),
+            ]
+            if args.dry_run:
+                command.append("-DryRun")
+        else:
+            command = [REPO_ROOT / "scripts/setup/build-llama-cpp.sh"]
+            if args.dry_run:
+                command.append("--dry-run")
         if args.cuda is not None:
             env["LLAMA_CUDA"] = args.cuda
         return _run(command, env)
@@ -1749,6 +2076,13 @@ def cmd_install(args: argparse.Namespace) -> int:
     env = _configured_env()
     paths = get_paths()
     if args.target == "vllm":
+        if _is_windows():
+            print(
+                "Native Windows vLLM serving is not supported by this workflow. "
+                "Use WSL2 for vLLM.",
+                file=sys.stderr,
+            )
+            return 2
         if Path(sys.prefix).resolve() != paths["venv"].resolve():
             print(
                 f"Activate the managed environment first: source {paths['venv']}/bin/activate",
@@ -1769,13 +2103,34 @@ def cmd_install(args: argparse.Namespace) -> int:
             return 3
         return _run([sys.executable, "-m", "pip", "install", "vllm"], env)
     if args.target == "ollama":
+        if _is_windows():
+            powershell = shutil.which("pwsh") or "powershell.exe"
+            return _run(
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(REPO_ROOT / "scripts/setup/install-ollama.ps1"),
+                ],
+                env,
+            )
         return _run([REPO_ROOT / "scripts/setup/install-ollama.sh"], env)
     if args.target == "strata":
         print("Install Strata from https://github.com/Niko1221/Strata")
         print("Then run: llm doctor")
         return 0
     if args.target == "hermes":
-        print("Install Hermes Agent from https://github.com/NousResearch/hermes-agent")
+        print("Install Hermes Agent with its official installer:")
+        if _is_windows():
+            print(
+                "  irm https://hermes-agent.nousresearch.com/install.ps1 | iex"
+            )
+        else:
+            print(
+                "  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"
+            )
         print("Then run: llm doctor")
         return 0
     return 2

@@ -17,6 +17,9 @@ Common requirements:
 - CMake, Make, and a C/C++ compiler
 - The Claude Code, Codex CLI, or Hermes CLI for the agent you intend to use
 
+The current benchmark machine is an Intel Core i7-12700F, 31 GiB RAM, and an
+NVIDIA GeForce RTX 3060 with 12 GB VRAM.
+
 For NVIDIA acceleration:
 
 - an NVIDIA driver visible through `nvidia-smi`
@@ -28,6 +31,8 @@ Check the machine:
 ./scripts/setup/check-prereqs.sh
 llm doctor
 ```
+
+Windows-native setup is documented in [`windows.md`](windows.md).
 
 ## Storage
 
@@ -50,7 +55,6 @@ engine builds, caches, virtualenvs, or credentials in the Git repository.
 Build:
 
 ```bash
-source .venv/bin/activate
 llm build llama-cpp
 ```
 

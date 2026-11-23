@@ -4,7 +4,7 @@
 
 ## 已验证
 
-以下路径已在 6 GB 显存的 RTX 3050 Laptop GPU 上完成本地验证：
+以下路径已在 31 GiB 内存、12 GB 显存的 NVIDIA RTX 3060 工作站上完成本地验证：
 
 | Agent | llama.cpp | Ollama | 状态 |
 |---|---|---|---|
@@ -12,8 +12,8 @@
 | Codex CLI | OpenAI Responses API | 内置集成 | 已验证 |
 | Hermes Agent | OpenAI Chat Completions | 原生 | 已验证 |
 
-共同端到端测试使用 llama.cpp 和官方 Qwen3.5-4B Q4_K_M。Hermes 还使用官方
-Qwen3.5-2B 验证了大上下文窗口。
+端到端测试覆盖 llama.cpp 上的 Qwen3.5-4B、Qwen3.5-14B 和
+DeepSeek-R1-Distill-Qwen-14B。Ollama 也使用 Qwen3.5-9B 验证了推理和工具调用。
 
 ## 直接命令
 
@@ -82,9 +82,9 @@ model:
 时会拒绝启动。删除方式：
 
 ```bash
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.context_length
-HERMES_HOME=/home/cy/LLM/hermes-local \
+HERMES_HOME="$HOME/LLM/hermes-local" \
   hermes config unset model.ollama_num_ctx
 ```
 

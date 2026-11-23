@@ -7,16 +7,16 @@
 
 ## 参考配置和已验证 Agent
 
-参考配置是 6 GB 显存的 RTX 3050 Laptop GPU。当前流程已在该硬件上完成
-端到端验证：
+当前基准机器是 Intel Core i7-12700F、31 GiB 内存和 12 GB 显存的
+NVIDIA RTX 3060。当前流程已在该硬件上完成端到端验证：
 
 - Claude Code
 - Codex CLI
 - Hermes Agent
 
-三个 Agent 共同使用的测试后端是 llama.cpp 和官方 Qwen3.5-4B Q4_K_M。
-Hermes 还使用官方 Qwen3.5-2B 验证了大上下文窗口。这些模型只是该硬件档位的
-示例，不是强制要求；显存和内存更大的机器可以选择更大、更强的模型。
+主要日常模型为 Qwen3.5-4B；Qwen3.5-14B、DeepSeek-R1-Distill-Qwen-14B
+以及更大的稀疏 Ollama 模型可用于更高质量或复杂推理。这些模型只是当前硬件
+档位的示例，不是强制要求。
 
 ## 当前范围
 
@@ -27,6 +27,7 @@ Hermes 还使用官方 Qwen3.5-2B 验证了大上下文窗口。这些模型只�
 | Claude Code | 已验证 | llama.cpp 原生，Ollama 通过兼容代理 |
 | Codex CLI | 已验证 | llama.cpp Responses provider |
 | Hermes Agent | 已验证 | OpenAI 兼容端点 |
+| Windows 10/11 x64 | 支持 | 原生运行 llama.cpp、Ollama 和全部 Agent |
 | vLLM | 暂缓 | 不属于当前硬件工作流 |
 | Strata | 暂缓 | 不属于当前硬件工作流 |
 
@@ -37,11 +38,19 @@ Hermes 还使用官方 Qwen3.5-2B 验证了大上下文窗口。这些模型只�
 
 ```bash
 ./scripts/setup/install-llm.sh
-source .venv/bin/activate
 llm --version
 ```
 
-`llm` 需要受管理的 Python 环境；`*-local` Agent 命令会自动激活它。
+`llm` 和 `*-local` Agent 命令会自动使用受管理的 Python 环境。
+
+Windows 用户可使用原生 PowerShell 流程：
+
+```powershell
+.\scripts\setup\install-llm.ps1 -AddToPath
+.\llm.cmd doctor
+```
+
+详见 [`docs/windows.zh-CN.md`](docs/windows.zh-CN.md)。
 
 ## 快速开始
 
@@ -49,7 +58,6 @@ llm --version
 
 ```bash
 ./scripts/setup/check-prereqs.sh
-source .venv/bin/activate
 llm setup
 
 curl -fL --retry 5 -C - \
@@ -82,7 +90,6 @@ llm
 
 ```bash
 # 终端 1
-source .venv/bin/activate
 llm start
 
 # 终端 2，可在任意项目目录中运行
@@ -97,7 +104,7 @@ hermes-local
 
 ## 模型列表
 
-CLI 支持任何兼容的 GGUF 模型。文档中列出的模型只是用于验证参考笔记本
+CLI 支持任何兼容的 GGUF 模型。文档中列出的模型只是用于验证当前基准机器
 完整流程的示例；用户应根据自己的硬件和质量要求选择模型。
 
 ```bash
@@ -140,6 +147,7 @@ llama.cpp 启动菜单会按模型提供上下文选项，也支持手动输入�
 | [`docs/backends.zh-CN.md`](docs/backends.zh-CN.md) | llama.cpp、Ollama、存储和生命周期 |
 | [`docs/models.zh-CN.md`](docs/models.zh-CN.md) | 已验证模型和建议 |
 | [`docs/context-memory.zh-CN.md`](docs/context-memory.zh-CN.md) | 上下文窗口和 KV cache |
+| [`docs/windows.zh-CN.md`](docs/windows.zh-CN.md) | 原生 Windows 安装、PowerShell 和 `.cmd` 启动器 |
 | [`docs/troubleshooting.zh-CN.md`](docs/troubleshooting.zh-CN.md) | 常见问题和诊断 |
 
 在 CLI 展示稳定前，暂不保留截图和媒体文件。

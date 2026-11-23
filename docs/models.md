@@ -4,9 +4,8 @@ English | [简体中文](models.zh-CN.md)
 
 ## Tested Models
 
-The models below are examples tested on the 6 GB reference laptop. They are
-not required, exclusive, or a ceiling. Hardware with more VRAM and RAM can run
-larger and more capable GGUF models.
+The models below are examples tested on the current RTX 3060 12 GB benchmark
+machine. They are not required, exclusive, or a ceiling.
 
 | Model | Local file | Size | Role |
 |---|---|---:|---|
@@ -31,10 +30,10 @@ The second model is a third-party Claude-4.6 reasoning-distilled derivative,
 not an official Qwen release. Both models passed Codex, Claude Code, and Hermes
 smoke tests through `codex-local`, `claude-local`, and `hermes-local`.
 
-Qwen3.5-4B is the default recommendation for local coding agents on the tested
-6 GB GPU. Qwen3.5-2B is useful when context size or speed matters more than
-raw model capability. Use the hardware tier and model quality you need rather
-than limiting the setup to these examples.
+Qwen3.5-4B is the fast default for local coding agents. Qwen3.5-9B and the
+tested 14B options provide more capability when the 12 GB GPU and 31 GiB RAM
+can absorb the extra memory and prefill cost. Qwen3.5-2B remains useful when
+speed or long context matters more than raw model capability.
 
 Official-compatible GGUF downloads:
 
