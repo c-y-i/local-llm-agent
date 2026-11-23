@@ -18,6 +18,19 @@ larger and more capable GGUF models.
 | Huihui Qwen3.5-2B abliterated F16 | `huihui-qwen3.5-2b-abliterated-f16.gguf` | 3.8 GB | High-precision llama.cpp GGUF; conservative 32K default |
 | Huihui Qwen3.5-4B abliterated | Ollama tag `huihui_ai/qwen3.5-abliterated:4b-agent` | 3.3 GB | Agent-ready uncensored Ollama model; 32K context |
 
+### 14B Options On A 12 GB GPU
+
+The RTX 3060 setup also exposes two tested 14B GGUFs to llama.cpp:
+
+| Model | Local file | Size | Launch behavior |
+|---|---|---:|---|
+| DeepSeek-R1-Distill-Qwen-14B Q4_K_M | `DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf` | 8.4 GB | 40 GPU layers, 64K context, KV cache in RAM |
+| Qwen3.5-14B-A3B reasoning-distilled Q4_K_M | `Qwen3.5-14B-A3B-Claude-4.6-Reasoning-Q4_K_M.gguf` | 8.1 GB | All layers on GPU, 64K context |
+
+The second model is a third-party Claude-4.6 reasoning-distilled derivative,
+not an official Qwen release. Both models passed Codex, Claude Code, and Hermes
+smoke tests through `codex-local`, `claude-local`, and `hermes-local`.
+
 Qwen3.5-4B is the default recommendation for local coding agents on the tested
 6 GB GPU. Qwen3.5-2B is useful when context size or speed matters more than
 raw model capability. Use the hardware tier and model quality you need rather

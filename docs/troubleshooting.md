@@ -10,16 +10,17 @@ llm status
 llm models
 ```
 
-## `llm` Says The Managed Environment Is Not Active
+## `llm` Says The Managed Environment Is Missing
 
-`llm` still requires explicit activation:
+The command re-executes itself inside the managed virtualenv automatically.
+If that environment is missing, recreate it:
 
 ```bash
-source /home/cy/Projects/local-llm-agent/.venv/bin/activate
+/home/cy/Projects/local-llm-agent/scripts/setup/install-llm.sh
 ```
 
-The `claude-local`, `codex-local`, and `hermes-local` commands do this
-automatically and can run from any directory.
+The `claude-local`, `codex-local`, and `hermes-local` commands use the same
+environment and can run from any directory.
 
 ## Ollama Is `ready` But No Model Is Active
 

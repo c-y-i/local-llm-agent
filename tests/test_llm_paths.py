@@ -380,6 +380,24 @@ class TestLLMCTL(unittest.TestCase):
             {"context": 65536, "gpu_layers": 999},
         )
         self.assertEqual(
+            llm_cli._llama_profile(
+                "Qwen3.5-14B-A3B-Claude-4.6-Reasoning-Q4_K_M"
+            ),
+            {"context": 65536, "gpu_layers": 999},
+        )
+        self.assertEqual(
+            llm_cli._llama_profile(
+                "DeepSeek-R1-Distill-Qwen-14B-Q4_K_M"
+            ),
+            {"context": 65536, "gpu_layers": 40},
+        )
+        self.assertEqual(
+            llm_cli._llama_kv_offload(
+                "DeepSeek-R1-Distill-Qwen-14B-Q4_K_M"
+            ),
+            "0",
+        )
+        self.assertEqual(
             llm_cli._llama_profile("gemma4-e4b-official-QAT-Q4_0"),
             {"context": 32768, "gpu_layers": 30},
         )
@@ -398,6 +416,15 @@ class TestLLMCTL(unittest.TestCase):
         self.assertEqual(result, 262144)
         self.assertIn("128K tokens (default)", output.getvalue())
         self.assertIn("256K tokens", output.getvalue())
+
+    def test_context_menu_offers_large_windows_for_qwen_9b_and_14b(self):
+        for model in (
+            "qwen3.5-9b-defiant-IQ3_M",
+            "Qwen3.5-14B-A3B-Claude-4.6-Reasoning-Q4_K_M",
+        ):
+            choices = llm_cli._context_choices(model)
+            self.assertIn(131072, choices)
+            self.assertIn(262144, choices)
 
     def test_ollama_context_profiles(self):
         self.assertEqual(
@@ -608,21 +635,17 @@ class TestLLMCTL(unittest.TestCase):
             )
         self.assertIsNone(result)
 
-    def test_codex_uses_builtin_ollama_provider(self):
+    def test_codex_uses_custom_provider_for_ollama(self):
         command = llm_cli._codex_command(
             "ollama", "http://127.0.0.1:11434", "qwen3.5:4b", 32768, []
         )
-        self.assertEqual(
+        self.assertEqual(command[0], "codex")
+        self.assertIn('model_provider="local-ollama"', command)
+        self.assertIn(
+            'model_providers.local-ollama.base_url="http://127.0.0.1:11434/v1"',
             command,
-            [
-                "ollama",
-                "launch",
-                "codex",
-                "--model",
-                "qwen3.5:4b",
-                "--",
-            ],
         )
+        self.assertIn("qwen3.5:4b", command)
         env = llm_cli.codex_environment(
             {"HOME": "/home/test"}, "ollama", "http://127.0.0.1:11434", "local", "qwen"
         )
@@ -644,11 +667,7 @@ class TestLLMCTL(unittest.TestCase):
                 "hermes",
                 "chat",
                 "--provider",
-                "custom",
-                "--base-url",
-                "http://127.0.0.1:8080/v1",
-                "--api-key",
-                "local",
+                "local-llama",
                 "--model",
                 "local-coder",
             ],

@@ -57,6 +57,13 @@ The Codex launcher configures a temporary custom provider using the Responses
 API. Local Codex state is isolated under `$LLM_ROOT/codex-local`, so an
 existing `~/.codex` configuration is not modified.
 
+For Codex shell-tool execution, Ollama's native tool parser is the most
+reliable route:
+
+```bash
+llm codex --backend ollama --model qwen3.5:9b
+```
+
 ## Hermes Agent
 
 ```bash

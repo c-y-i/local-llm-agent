@@ -40,12 +40,11 @@ now describe the tested local-agent path only.
 
 ```bash
 ./scripts/setup/install-llm.sh
-source .venv/bin/activate
 llm --version
 ```
 
-`llm` requires the managed Python environment. The direct agent commands
-activate it automatically.
+The `llm` command and the direct agent commands activate the managed Python
+environment automatically.
 
 ## Quick Start
 
@@ -53,7 +52,6 @@ Check prerequisites, build llama.cpp, and obtain a model:
 
 ```bash
 ./scripts/setup/check-prereqs.sh
-source .venv/bin/activate
 llm setup
 
 curl -fL --retry 5 -C - \
@@ -87,7 +85,6 @@ Typical two-terminal workflow:
 
 ```bash
 # Terminal 1
-source .venv/bin/activate
 llm start
 
 # Terminal 2, from any project directory

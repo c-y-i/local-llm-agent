@@ -40,6 +40,8 @@ LLAMA_PROFILES = (
     ),
     ("qwen3.5-2b", {"context": 131072, "gpu_layers": 999}),
     ("qwen3.5-4b", {"context": 65536, "gpu_layers": 999}),
+    ("qwen3.5-14b", {"context": 65536, "gpu_layers": 999}),
+    ("deepseek-r1-distill-qwen-14b", {"context": 65536, "gpu_layers": 40}),
     ("qwen3.5-9b", {"context": 32768, "gpu_layers": 24}),
     ("gemma4-e4b", {"context": 32768, "gpu_layers": 30}),
 )
@@ -51,13 +53,17 @@ LLAMA_CONTEXT_CHOICES = (
     ),
     ("qwen3.5-2b", (32768, 65536, 131072, 262144)),
     ("qwen3.5-4b", (32768, 65536, 98304, 131072)),
-    ("qwen3.5-9b", (16384, 32768, 49152, 65536)),
+    ("qwen3.5-14b", (16384, 32768, 49152, 65536, 131072, 262144)),
+    ("deepseek-r1-distill-qwen-14b", (16384, 32768, 65536)),
+    ("qwen3.5-9b", (16384, 32768, 49152, 65536, 131072, 262144)),
     ("gemma4-e4b", (16384, 32768, 49152, 65536)),
 )
 
 LLAMA_MODEL_PRIORITY = (
     "qwen3.5-4b",
     "qwen3.5-2b",
+    "qwen3.5-14b",
+    "deepseek-r1-distill-qwen-14b",
     "qwen3.5-9b",
     "gemma4-e4b",
 )
@@ -164,6 +170,18 @@ def _require_managed_venv() -> int | None:
     active = Path(sys.prefix).resolve()
     if active == expected:
         return None
+    python = expected / "bin" / "python"
+    if python.is_file() and os.environ.get("LLM_VENV_REEXEC") != "1":
+        env = os.environ.copy()
+        env["LLM_VENV_REEXEC"] = "1"
+        try:
+            os.execve(
+                str(python),
+                [str(python), str(Path(__file__).resolve()), *sys.argv[1:]],
+                env,
+            )
+        except OSError:
+            pass
     activate = expected / "bin" / "activate"
     print("The managed Python environment is not active.", file=sys.stderr)
     if activate.is_file():
@@ -836,6 +854,8 @@ def _background_llama_model(
     )
     env.setdefault("FLASH_ATTN", "auto")
     env.setdefault("KV_CACHE_TYPE", "q8_0")
+    if _llama_kv_offload(model or "") == "0":
+        env.setdefault("KV_OFFLOAD", "0")
 
     log_path = paths["run"] / "llama-server.log"
     pid_path = paths["run"] / "llama-server.pid"
@@ -896,7 +916,14 @@ def _llama_server_pids() -> list[int]:
         except OSError:
             continue
         args = [arg.decode(errors="replace") for arg in args if arg]
-        if args and Path(args[0]).name == "llama-server":
+        if args and (
+            Path(args[0]).name == "llama-server"
+            or (
+                Path(args[0]).name == "llama"
+                and len(args) > 1
+                and args[1] == "serve"
+            )
+        ):
             pids.append(int(entry.name))
     return pids
 
@@ -907,7 +934,7 @@ def _stop_tracked_llama(paths: dict[str, Path]) -> tuple[bool, str]:
     try:
         pid = int(pid_path.read_text().strip())
         command = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ")
-        if b"llama-server" in command:
+        if b"llama-server" in command or b"llama serve" in command:
             pids.add(pid)
     except (OSError, ValueError):
         pid = None
@@ -952,7 +979,7 @@ def _stop_managed_ollama(paths: dict[str, Path]) -> tuple[bool, str]:
     pids = _ollama_serve_pids()
     if not pids:
         (paths["run"] / "ollama.pid").unlink(missing_ok=True)
-        return True, "Ollama is not running"
+        return True, "no managed Ollama process to stop"
     for pid in pids:
         try:
             os.kill(pid, signal.SIGTERM)
@@ -972,6 +999,13 @@ def _llama_profile(model: str) -> dict[str, int]:
         if marker in normalized:
             return profile
     return {"context": 16384, "gpu_layers": 999}
+
+
+def _llama_kv_offload(model: str) -> str:
+    normalized = model.lower()
+    if "deepseek-r1-distill-qwen-14b" in normalized:
+        return "0"
+    return "1"
 
 
 def _context_choices(model: str) -> tuple[int, ...]:
@@ -1081,17 +1115,6 @@ def _running_backends(env: dict[str, str]) -> list[str]:
 def _codex_command(
     backend: str, base_url: str, model: str, context: int, extra: list[str]
 ) -> list[str]:
-    if backend == "ollama":
-        return [
-            "ollama",
-            "launch",
-            "codex",
-            "--model",
-            model,
-            "--",
-            *extra,
-        ]
-
     provider = f"local-{backend}"
     command = [
         "codex",
@@ -1128,18 +1151,63 @@ def codex_environment(
     return result
 
 
+def _local_provider_id(backend: str) -> str:
+    if backend == "ollama":
+        return "local-ollama"
+    if backend == "llama-cpp":
+        return "local-llama"
+    return f"local-{backend}"
+
+
+def _configure_hermes_provider(
+    env: dict[str, str],
+    backend: str,
+    base_url: str,
+    model: str,
+    token: str,
+) -> str | None:
+    provider = _local_provider_id(backend)
+    values = {
+        f"providers.{provider}.name": f"Local {backend}",
+        f"providers.{provider}.base_url": f"{base_url.rstrip('/')}/v1",
+        f"providers.{provider}.api_key": token,
+        f"providers.{provider}.transport": "openai_chat",
+        f"providers.{provider}.default_model": model,
+        "model.provider": provider,
+        "model.default": model,
+        "model.name": model,
+    }
+    for key, value in values.items():
+        try:
+            result = subprocess.run(
+                ["hermes", "config", "set", key, value, "--force"],
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            print(f"error: could not configure Hermes: {exc}", file=sys.stderr)
+            return None
+        if result.returncode != 0:
+            print(
+                f"error: could not configure Hermes ({key}): "
+                f"{result.stderr.strip() or result.stdout.strip()}",
+                file=sys.stderr,
+            )
+            return None
+    return provider
+
+
 def _hermes_command(
     backend: str, base_url: str, model: str, extra: list[str], token: str = "local"
 ) -> list[str]:
+    provider = _local_provider_id(backend)
     return [
         "hermes",
         "chat",
         "--provider",
-        "custom",
-        "--base-url",
-        f"{base_url}/v1",
-        "--api-key",
-        token,
+        provider,
         "--model",
         model,
         *extra,
@@ -1349,7 +1417,9 @@ def cmd_start(args: argparse.Namespace) -> int:
         env["N_GPU_LAYERS"] = str(gpu_layers)
         env.setdefault("FLASH_ATTN", "auto")
         env.setdefault("KV_CACHE_TYPE", "q8_0")
-        if (
+        if _llama_kv_offload(model or "") == "0":
+            env.setdefault("KV_OFFLOAD", "0")
+        elif (
             "huihui-qwen3.5-2b-abliterated-f16" in (model or "").lower()
             and context > 131072
         ):
@@ -1557,6 +1627,11 @@ def _launch_hermes(
             f"hermes config unset model.{key}",
             file=sys.stderr,
         )
+        return 2
+    provider = _configure_hermes_provider(
+        hermes_env, backend, base_url, model, token
+    )
+    if provider is None:
         return 2
     command = _hermes_command(backend, base_url, model, extra, token)
     return _run(command, hermes_env)

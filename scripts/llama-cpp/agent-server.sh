@@ -22,6 +22,8 @@ set -euo pipefail
 #   N_PARALLEL        1
 #   METRICS           1
 #   JINJA             1
+#   CHAT_TEMPLATE     chatml for strict Qwen templates; model-native otherwise
+#   CHAT_TEMPLATE_FILE Qwen3.5-compatible native template
 #   FLASH_ATTN        auto
 #   KV_CACHE_TYPE     q8_0
 #   KV_OFFLOAD        1
@@ -51,8 +53,22 @@ name="${1:-qwen2.5-coder-3b}"
 port="${2:-${LLAMA_CPP_PORT}}"
 model="${MODELS_DIR}/${name}.gguf"
 
+if [[ -z "${CHAT_TEMPLATE+x}" && -z "${CHAT_TEMPLATE_FILE+x}" ]]; then
+  case "${name,,}" in
+    qwen3.5*) CHAT_TEMPLATE_FILE="${LLM_ROOT}/llama.cpp/qwen35-compatible.jinja" ;;
+    *qwen*) CHAT_TEMPLATE="chatml" ;;
+    *) CHAT_TEMPLATE="" ;;
+  esac
+fi
+
 if [[ -z "${N_CTX+x}" ]]; then
   case "$name" in
+    [Qq]wen3.5-14b*)
+      N_CTX=65536
+      ;;
+    [Dd]eepseek-r1-distill-[Qq]wen-14b*)
+      N_CTX=65536
+      ;;
     qwen2.5-coder-3b)
       N_CTX=32768
       ;;
@@ -76,6 +92,10 @@ if [[ ! -f "$model" ]]; then
   echo "Model file not found: $model" >&2
   echo "Available:" >&2
   ls "$MODELS_DIR"/*.gguf 2>/dev/null | xargs -n1 basename | sed 's/\.gguf$//; s/^/  /' >&2 || true
+  exit 1
+fi
+if [[ -n "${CHAT_TEMPLATE_FILE:-}" && ! -f "$CHAT_TEMPLATE_FILE" ]]; then
+  echo "Chat template not found: $CHAT_TEMPLATE_FILE" >&2
   exit 1
 fi
 
@@ -135,6 +155,11 @@ if [[ "$METRICS" != "0" && "$METRICS" != "false" ]]; then
 fi
 if [[ "$JINJA" != "0" && "$JINJA" != "false" ]]; then
   args+=(--jinja)
+fi
+if [[ -n "${CHAT_TEMPLATE_FILE:-}" ]]; then
+  args+=(--chat-template-file "$CHAT_TEMPLATE_FILE")
+elif [[ -n "${CHAT_TEMPLATE:-}" ]]; then
+  args+=(--chat-template "$CHAT_TEMPLATE")
 fi
 args+=(--flash-attn "$FLASH_ATTN")
 args+=(--cache-type-k "$KV_CACHE_TYPE" --cache-type-v "$KV_CACHE_TYPE")

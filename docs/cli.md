@@ -9,12 +9,11 @@ status, and agent launch.
 
 ```bash
 ./scripts/setup/install-llm.sh
-source .venv/bin/activate
 llm --version
 ```
 
-`llm` requires the managed virtualenv. The installed `claude-local`,
-`codex-local`, and `hermes-local` commands activate it automatically.
+`llm` and the installed `claude-local`, `codex-local`, and `hermes-local`
+commands activate the managed virtualenv automatically.
 
 ## Main Menu
 
