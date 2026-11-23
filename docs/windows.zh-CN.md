@@ -18,6 +18,10 @@ Set-ExecutionPolicy -Scope Process Bypass
 `llm.cmd`、`claude-local.cmd`、`codex-local.cmd` 和
 `hermes-local.cmd`。
 
+若尚未设置用户级 `OLLAMA_MODELS`，安装器会指向
+`%USERPROFILE%\LLM\ollama\models\llm`。安装后需重启 Ollama，使共享模型目录
+生效。
+
 ## 检查与构建
 
 ```powershell
@@ -56,3 +60,13 @@ GGUF 模型放在 `%USERPROFILE%\LLM\models`，文件名去掉 `.gguf` 后即为
 
 `.env` 同时支持 `$VAR` 和 `%VAR%` 形式。完整说明见
 [English Windows guide](windows.md)。
+
+## 控制面板
+
+```powershell
+python control_panel.py
+```
+
+Windows 使用 `tasklist`、`nvidia-smi` 和 PowerShell CIM 收集运行状态。为避免
+误操作，Windows 控制面板的服务启动/停止按钮保持只读，请使用
+`llm.cmd start` 和 `llm.cmd stop`。

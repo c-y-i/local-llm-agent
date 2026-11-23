@@ -695,7 +695,11 @@ def _directory_size(path: Path) -> int | None:
             stat = item.stat()
         except OSError:
             continue
-        identity = (stat.st_dev, stat.st_ino)
+        identity = (
+            (stat.st_dev, stat.st_ino)
+            if stat.st_ino
+            else (str(item.resolve()), stat.st_size)
+        )
         if identity in seen:
             continue
         seen.add(identity)
@@ -1124,6 +1128,38 @@ def _background_llama_model(
         time.sleep(0.25)
     print(f"error: llama.cpp did not become ready; see {log_path}", file=sys.stderr)
     return False
+
+
+def _run_foreground_llama(
+    command: list[str],
+    env: dict[str, str],
+    paths: dict[str, Path],
+) -> int:
+    command = _normalized_command(command, env)
+    print("+ " + " ".join(command), file=sys.stderr)
+    pid_path = paths["run"] / "llama-server.pid"
+    try:
+        process = subprocess.Popen(command, cwd=Path.cwd(), env=env)
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 127
+    pid_path.write_text(f"{process.pid}\n")
+    try:
+        return process.wait()
+    except KeyboardInterrupt:
+        try:
+            _terminate_process(process.pid)
+            process.wait(timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return 130
+    finally:
+        try:
+            recorded = int(pid_path.read_text().strip())
+        except (OSError, ValueError):
+            recorded = None
+        if recorded == process.pid:
+            pid_path.unlink(missing_ok=True)
 
 
 def _ensure_agent_model(env: dict[str, str], paths: dict[str, Path]) -> bool:
@@ -1628,11 +1664,14 @@ def cmd_logs(args: argparse.Namespace) -> int:
     if not path.is_file():
         print(f"Log file not found: {path}", file=sys.stderr)
         if backend == "ollama":
-            print(
-                "Restart Ollama with: "
-                f"{REPO_ROOT}/scripts/ollama/restart-managed.sh",
-                file=sys.stderr,
-            )
+            if _is_windows():
+                print("Start Ollama with: llm start ollama", file=sys.stderr)
+            else:
+                print(
+                    "Restart Ollama with: "
+                    f"{REPO_ROOT}/scripts/ollama/restart-managed.sh",
+                    file=sys.stderr,
+                )
         return 2
     return _tail_file(path, args.lines, args.follow)
 
@@ -1777,7 +1816,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         except RuntimeError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
-        return _run(command, env)
+        return _run_foreground_llama(command, env, paths)
     if backend == "vllm":
         if _is_windows():
             print(

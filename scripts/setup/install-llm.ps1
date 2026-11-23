@@ -20,6 +20,11 @@ if (-not $python) {
 if (-not $python) {
     throw "Python 3.11 or newer is required and was not found on PATH."
 }
+$versionArgs = if ($python.Name -ieq "py.exe") { @("-3", "-c") } else { @("-c") }
+& $python.Source @versionArgs "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
+if ($LASTEXITCODE -ne 0) {
+    throw "Python 3.11 or newer is required."
+}
 
 if (-not (Test-Path $venvPython)) {
     Write-Host "Creating managed virtualenv: $venv"
@@ -42,6 +47,14 @@ foreach ($name in @(
     "LLM_HERMES_HOME"
 )) {
     New-Item -ItemType Directory -Force -Path ([Environment]::GetEnvironmentVariable($name)) | Out-Null
+}
+
+$userOllamaModels = [Environment]::GetEnvironmentVariable("OLLAMA_MODELS", "User")
+if (-not $userOllamaModels) {
+    [Environment]::SetEnvironmentVariable("OLLAMA_MODELS", $env:OLLAMA_MODELS, "User")
+    Write-Host "Configured user OLLAMA_MODELS: $env:OLLAMA_MODELS"
+} elseif ($userOllamaModels -ne $env:OLLAMA_MODELS) {
+    Write-Warning "User OLLAMA_MODELS is already set to $userOllamaModels; leaving it unchanged."
 }
 
 $repoVenv = Join-Path $repoRoot ".venv"

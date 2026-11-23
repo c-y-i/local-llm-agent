@@ -10,6 +10,13 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $env:LOCAL_LLM_AGENT_ROOT = (Resolve-Path (Join-Path $scriptDir "..\..")).Path
 . (Join-Path $env:LOCAL_LLM_AGENT_ROOT "scripts\common\env.ps1")
 
+if ($Cuda -eq "auto" -and $env:LLAMA_CUDA) {
+    $Cuda = $env:LLAMA_CUDA
+}
+if ($Cuda -notin @("auto", "ON", "OFF")) {
+    throw "Invalid LLAMA_CUDA value '$Cuda' (use auto, ON, or OFF)."
+}
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "git is required."
 }

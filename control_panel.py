@@ -47,6 +47,8 @@ APP_SUBTITLE = (
 
 
 def controls_enabled():
+    if os.name == "nt":
+        return False
     return os.environ.get("LLM_MONITOR_CONTROLS", DEFAULT_CONTROLS).lower() in (
         "1",
         "true",
@@ -106,6 +108,27 @@ def pullable_model_tags():
 def get_services():
     result = {}
     for svc in SERVICES:
+        if os.name == "nt":
+            process = {
+                "ollama": "ollama.exe",
+                "llama-cline": "llama-server.exe",
+                "litellm-proxy": "litellm.exe",
+            }.get(svc)
+            if not process:
+                result[svc] = {"status": "unknown"}
+                continue
+            try:
+                out = subprocess.run(
+                    ["tasklist", "/FI", f"IMAGENAME eq {process}", "/NH"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                running = process.lower() in out.stdout.lower()
+                result[svc] = {"status": "active" if running else "inactive"}
+            except Exception:
+                result[svc] = {"status": "unknown"}
+            continue
         try:
             out = subprocess.run(
                 ["systemctl", "is-active", svc],
@@ -219,6 +242,9 @@ def get_backends():
 
 
 def get_system():
+    if os.name == "nt":
+        return _get_windows_system()
+
     ram = {"available": False}
     try:
         mem = {}
@@ -266,17 +292,61 @@ def get_system():
     return {"ram": ram, "cpu": cpu}
 
 
+def _get_windows_system():
+    shell = shutil.which("pwsh") or "powershell.exe"
+    script = (
+        "$os=Get-CimInstance Win32_OperatingSystem;"
+        "$cpu=Get-CimInstance Win32_Processor | Select-Object -First 1;"
+        "[pscustomobject]@{"
+        "TotalKb=[int64]$os.TotalVisibleMemorySize;"
+        "FreeKb=[int64]$os.FreePhysicalMemory;"
+        "CpuName=[string]$cpu.Name;"
+        "CpuLoad=[int]$cpu.LoadPercentage;"
+        "CpuCount=[int]$env:NUMBER_OF_PROCESSORS"
+        "}|ConvertTo-Json -Compress"
+    )
+    try:
+        result = subprocess.run(
+            [shell, "-NoProfile", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        data = json.loads(result.stdout)
+    except Exception:
+        return {"ram": {"available": False}, "cpu": {"available": False}}
+
+    total_kb = int(data.get("TotalKb", 0))
+    free_kb = int(data.get("FreeKb", 0))
+    total_mib = total_kb // 1024
+    free_mib = free_kb // 1024
+    return {
+        "ram": {
+            "available": total_mib > 0,
+            "total_mib": total_mib,
+            "used_mib": max(total_mib - free_mib, 0),
+        },
+        "cpu": {
+            "available": True,
+            "pct": float(data.get("CpuLoad", 0) or 0),
+            "count": int(data.get("CpuCount", os.cpu_count() or 1) or 1),
+            "model": str(data.get("CpuName", "")).strip(),
+        },
+    }
+
+
 def get_storage():
     result = {}
+    root_path = os.path.abspath(os.sep)
     try:
-        usage = shutil.disk_usage("/")
-        result["/ (root)"] = {
+        usage = shutil.disk_usage(root_path)
+        result[f"{root_path} (root)"] = {
             "available": True,
             "total_bytes": usage.total,
             "used_bytes": usage.used,
         }
     except Exception:
-        result["/ (root)"] = {"available": False}
+        result[f"{root_path} (root)"] = {"available": False}
 
     paths = get_paths()
     models_dir = os.environ.get("OLLAMA_MODELS", str(paths["ollama_models"]))
@@ -376,6 +446,12 @@ def run_service_action(service, action):
         return _action_result(False, f"unsupported service: {service}")
     if action not in SERVICE_ACTIONS:
         return _action_result(False, f"unsupported service action: {action}")
+    if os.name == "nt":
+        return _action_result(
+            False,
+            "Windows dashboard service controls are disabled; use `llm start` "
+            "or `llm stop`.",
+        )
     try:
         out = subprocess.run(
             ["systemctl", action, service],

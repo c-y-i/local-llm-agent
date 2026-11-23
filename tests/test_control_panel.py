@@ -1,5 +1,7 @@
+import json
 import sys
 import os
+import subprocess
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -235,6 +237,49 @@ class TestGetSystemCPUModel(unittest.TestCase):
         ]):
             result = control_panel.get_system()
         self.assertNotIn("model", result["cpu"])
+
+
+class TestWindowsDashboard(unittest.TestCase):
+    @patch("control_panel.subprocess.run")
+    def test_windows_system_uses_cim_output(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "TotalKb": 33554432,
+                    "FreeKb": 16777216,
+                    "CpuName": "Intel Core i7-12700F",
+                    "CpuLoad": 15,
+                    "CpuCount": 20,
+                }
+            ),
+            stderr="",
+        )
+        result = control_panel._get_windows_system()
+        self.assertEqual(result["ram"]["total_mib"], 32768)
+        self.assertEqual(result["ram"]["used_mib"], 16384)
+        self.assertEqual(result["cpu"]["model"], "Intel Core i7-12700F")
+        self.assertEqual(result["cpu"]["pct"], 15.0)
+
+    @patch("control_panel.subprocess.run")
+    def test_windows_services_use_tasklist(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="ollama.exe  1234 Console  1  10,000 K\n",
+            stderr="",
+        )
+        with patch.object(control_panel.os, "name", "nt"):
+            result = control_panel.get_services()
+        self.assertEqual(result["ollama"]["status"], "active")
+
+    def test_windows_controls_are_read_only(self):
+        with patch.object(control_panel.os, "name", "nt"):
+            self.assertFalse(control_panel.controls_enabled())
+            result = control_panel.run_service_action("ollama", "restart")
+        self.assertFalse(result["ok"])
+        self.assertIn("llm start", result["message"])
 
 
 class TestGetStorage(unittest.TestCase):

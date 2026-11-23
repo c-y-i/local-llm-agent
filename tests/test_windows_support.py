@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import os
 import tempfile
 import unittest
@@ -84,6 +85,20 @@ class TestWindowsSupport(unittest.TestCase):
             r'"C:\Users\test\claude.cmd"',
         ])
         self.assertEqual(command[-1], "--version")
+
+    def test_foreground_server_tracks_and_clears_pid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            process = unittest.mock.Mock(pid=4321)
+            process.wait.return_value = 0
+            with patch.object(
+                llm_cli.subprocess, "Popen", return_value=process
+            ), patch("sys.stderr", new_callable=io.StringIO):
+                result = llm_cli._run_foreground_llama(
+                    ["llama-server"], {}, {"run": run_dir}
+                )
+            self.assertEqual(result, 0)
+            self.assertFalse((run_dir / "llama-server.pid").exists())
 
     def test_percent_style_env_expansion(self):
         with patch.dict(os.environ, {"LLM_TEST_ROOT": "/tmp/windows-root"}, clear=False):

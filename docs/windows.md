@@ -49,6 +49,11 @@ The installer creates:
   .venv\
 ```
 
+It also sets the per-user `OLLAMA_MODELS` variable to
+`%USERPROFILE%\LLM\ollama\models\llm` when that variable is not already set.
+Restart Ollama after installation so its background app sees the shared model
+store.
+
 It also installs `llm.cmd`, `claude-local.cmd`, `codex-local.cmd`, and
 `hermes-local.cmd` under `%USERPROFILE%\.local\bin`.
 
@@ -164,3 +169,15 @@ Get-NetTCPConnection -LocalPort 8080 -State Listen
 
 If a model was downloaded for Linux but references `/home/...`, replace the
 absolute path or download it again under `%USERPROFILE%\LLM\models`.
+
+## Dashboard
+
+The dashboard can run natively:
+
+```powershell
+python control_panel.py
+```
+
+Windows monitoring uses `tasklist`, `nvidia-smi`, and PowerShell CIM data for
+CPU/RAM. Dashboard service controls are intentionally disabled on Windows;
+use `llm.cmd start` and `llm.cmd stop` instead.
