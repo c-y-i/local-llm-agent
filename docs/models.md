@@ -31,7 +31,7 @@ not an official Qwen release. Both models passed Codex, Claude Code, and Hermes
 smoke tests through `codex-local`, `claude-local`, and `hermes-local`.
 
 Qwen3.5-4B is the fast default for local coding agents. Qwen3.5-9B and the
-tested 14B options provide more capability when the 12 GB GPU and 31 GiB RAM
+tested 14B options provide more capability when the 12 GB GPU and 32 GB RAM
 can absorb the extra memory and prefill cost. Qwen3.5-2B remains useful when
 speed or long context matters more than raw model capability.
 

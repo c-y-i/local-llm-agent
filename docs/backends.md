@@ -17,7 +17,7 @@ Common requirements:
 - CMake, Make, and a C/C++ compiler
 - The Claude Code, Codex CLI, or Hermes CLI for the agent you intend to use
 
-The current benchmark machine is an Intel Core i7-12700F, 31 GiB RAM, and an
+The current benchmark machine is an Intel Core i7-12700F, 32 GB RAM, and an
 NVIDIA GeForce RTX 3060 with 12 GB VRAM.
 
 For NVIDIA acceleration:

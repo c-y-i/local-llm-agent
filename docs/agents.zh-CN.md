@@ -4,7 +4,7 @@
 
 ## 已验证
 
-以下路径已在 31 GiB 内存、12 GB 显存的 NVIDIA RTX 3060 工作站上完成本地验证：
+以下路径已在 32 GB 内存、12 GB 显存的 NVIDIA RTX 3060 工作站上完成本地验证：
 
 | Agent | llama.cpp | Ollama | 状态 |
 |---|---|---|---|

@@ -20,8 +20,12 @@ if (-not $python) {
 if (-not $python) {
     throw "Python 3.11 or newer is required and was not found on PATH."
 }
-$versionArgs = if ($python.Name -ieq "py.exe") { @("-3", "-c") } else { @("-c") }
-& $python.Source @versionArgs "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
+$versionCheck = "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
+if ($python.Name -ieq "py.exe") {
+    & $python.Source -3 -c $versionCheck
+} else {
+    & $python.Source -c $versionCheck
+}
 if ($LASTEXITCODE -ne 0) {
     throw "Python 3.11 or newer is required."
 }

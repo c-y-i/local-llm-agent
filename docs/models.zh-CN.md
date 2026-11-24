@@ -28,7 +28,7 @@
 通过 `codex-local`、`claude-local` 和 `hermes-local` 的端到端推理测试。
 
 Qwen3.5-4B 是速度优先的本地编码默认模型。Qwen3.5-9B 和已验证的 14B
-模型在 12 GB 显存、31 GiB 内存允许时提供更高能力。Qwen3.5-2B 仍适合
+模型在 12 GB 显存、32 GB 内存允许时提供更高能力。Qwen3.5-2B 仍适合
 更重视速度或上下文大小的场景。
 
 官方兼容 GGUF 下载：

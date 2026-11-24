@@ -16,7 +16,7 @@ llama.cpp 是主要后端，Ollama 是辅助后端和共享模型存储。vLLM �
 - 对应 Agent 的 CLI：Claude Code、Codex CLI 或 Hermes
 - 使用 NVIDIA 加速时需要驱动和可用的 CUDA 构建
 
-当前基准机器为 Intel Core i7-12700F、31 GiB 内存和 12 GB 显存的
+当前基准机器为 Intel Core i7-12700F、32 GB 内存和 12 GB 显存的
 NVIDIA GeForce RTX 3060。
 
 ```bash
