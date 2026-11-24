@@ -281,7 +281,7 @@ def _llama_server_command(
             "-np",
             str(env.get("N_PARALLEL", "1")),
             "--temp",
-            str(env.get("TEMP", "0.2")),
+            str(env.get("TEMPERATURE", "0.2")),
             "--top-p",
             str(env.get("TOP_P", "0.9")),
             "--repeat-penalty",

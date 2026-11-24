@@ -68,6 +68,35 @@ class TestWindowsSupport(unittest.TestCase):
         self.assertIn("--chat-template", command)
         self.assertIn("chatml", command)
 
+    def test_sampling_temperature_ignores_windows_temp_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binary = root / "llama-server"
+            binary.write_text("")
+            models = root / "models"
+            models.mkdir()
+            (models / "qwen3.5-4b-test.gguf").write_text("")
+            env = {
+                "LLAMA_SERVER_BIN": str(binary),
+                "TEMP": r"C:\Users\test\AppData\Local\Temp",
+            }
+            command = llm_cli._llama_server_command(
+                env,
+                {"models": models, "llama_cpp": root},
+                "qwen3.5-4b-test",
+            )
+            env["TEMPERATURE"] = "0.35"
+            overridden = llm_cli._llama_server_command(
+                env,
+                {"models": models, "llama_cpp": root},
+                "qwen3.5-4b-test",
+            )
+
+        temperature_index = command.index("--temp")
+        self.assertEqual(command[temperature_index + 1], "0.2")
+        overridden_index = overridden.index("--temp")
+        self.assertEqual(overridden[overridden_index + 1], "0.35")
+
     def test_windows_cmd_execution_is_normalized(self):
         with patch.object(llm_cli, "_is_windows", return_value=True), patch.object(
             llm_cli.shutil,
