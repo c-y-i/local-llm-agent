@@ -430,6 +430,24 @@ class TestLLMCTL(unittest.TestCase):
             self.assertIn(131072, choices)
             self.assertIn(262144, choices)
 
+    def test_context_menus_offer_native_maximums(self):
+        self.assertIn(
+            262144,
+            llm_cli._context_choices("qwen3.5-4b-official-Q4_K_M"),
+        )
+        self.assertIn(
+            131072,
+            llm_cli._context_choices("gemma4-e4b-official-QAT-Q4_0"),
+        )
+        self.assertIn(
+            262144,
+            llm_cli._ollama_context_profile("qwen3.5-4b-official:latest")[0],
+        )
+        self.assertIn(
+            131072,
+            llm_cli._ollama_context_profile("gemma4-e4b:latest")[0],
+        )
+
     def test_ollama_context_profiles(self):
         self.assertEqual(
             llm_cli._ollama_context_profile(

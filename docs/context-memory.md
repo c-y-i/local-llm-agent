@@ -45,6 +45,11 @@ more memory and reduce cache headroom:
 Qwen3.5-2B has a native 262,144-token limit. It was verified at 128K with the
 KV cache on the GPU and at 256K with `KV_OFFLOAD=0`.
 
+The menu exposes each model's native maximum where known. Qwen3.5-4B supports
+262,144 tokens, and Gemma 4 E4B supports 131,072 tokens. Those choices remain
+experimental on memory-constrained hardware; they do not imply that every
+machine can use the full window comfortably.
+
 ## llama.cpp Controls
 
 ```bash
