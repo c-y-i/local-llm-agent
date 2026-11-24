@@ -43,7 +43,7 @@ function Invoke-Step {
         $rest = @($Arguments | Select-Object -Skip 1)
         & $command @rest
         if ($LASTEXITCODE -ne 0) {
-            throw "Command failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
+            throw "Command failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')"
         }
     }
 }
