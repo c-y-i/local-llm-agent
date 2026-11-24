@@ -8,7 +8,7 @@ small configuration files; model weights and runtime state live outside Git.
 
 ## Reference Setup And Tested Agents
 
-The current benchmark machine is an Intel Core i7-12700F with 31 GiB RAM and
+The current benchmark machine is an Intel Core i7-12700F with 32 GB RAM and
 an NVIDIA RTX 3060 with 12 GB VRAM. The workflow is tested end to end there
 with:
 
@@ -59,7 +59,12 @@ See [`docs/windows.md`](docs/windows.md).
 
 ## Quick Start
 
-Check prerequisites, build llama.cpp, and obtain a model:
+For a new installation, start with
+[`docs/agent-setup.md`](docs/agent-setup.md): inspect the hardware, ask what
+kind of model the user wants, and install only the selected model. The Qwen
+download below is an example, not a default.
+
+Check prerequisites and build llama.cpp:
 
 ```bash
 ./scripts/setup/check-prereqs.sh
@@ -72,9 +77,11 @@ mv ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf.part \
   ~/LLM/models/qwen3.5-4b-official-Q4_K_M.gguf
 ```
 
-The download is about 2.6 GB. Qwen3.5-2B is a smaller alternative documented in
-[`docs/models.md`](docs/models.md). Install the Claude Code, Codex CLI, or
-Hermes CLI you intend to use; the project checks for them in `llm doctor`.
+The example download is about 2.6 GB. Qwen3.5-2B is a smaller alternative, and
+Gemma is another option for general-purpose work; see
+[`docs/models.md`](docs/models.md). Do not assume either example matches the
+user's hardware or goals. Install only the Claude Code, Codex CLI, or Hermes
+CLI you intend to use; `llm doctor` checks for them.
 
 Then start the interactive tool:
 
@@ -154,6 +161,7 @@ allows a custom value. Higher context consumes more VRAM or system RAM. See
 
 | Document | Contents |
 |---|---|
+| [`docs/agent-setup.md`](docs/agent-setup.md) | Hardware assessment, model choice, and end-to-end agent onboarding |
 | [`docs/cli.md`](docs/cli.md) | `llm` commands and interactive workflow |
 | [`docs/agents.md`](docs/agents.md) | Claude Code, Codex CLI, and Hermes Agent |
 | [`docs/backends.md`](docs/backends.md) | llama.cpp, Ollama, storage, and lifecycle |

@@ -1,5 +1,9 @@
 # local-llm-agent
 
+新机器安装请先阅读 [Agent 安装指南](docs/agent-setup.zh-CN.md)：检查硬件、询问
+用户需要的模型类别，并且只安装用户选择的模型。README 中的 Qwen 下载命令只是
+示例，不是默认模型。
+
 [English](README.md) | 简体中文
 
 在自有硬件上运行本地编码模型，并连接 Claude Code、Codex CLI 或 Hermes Agent。
@@ -7,7 +11,7 @@
 
 ## 参考配置和已验证 Agent
 
-当前基准机器是 Intel Core i7-12700F、31 GiB 内存和 12 GB 显存的
+当前基准机器是 Intel Core i7-12700F、32 GB 内存和 12 GB 显存的
 NVIDIA RTX 3060。当前流程已在该硬件上完成端到端验证：
 
 - Claude Code

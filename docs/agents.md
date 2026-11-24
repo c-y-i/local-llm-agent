@@ -2,9 +2,13 @@
 
 English | [简体中文](agents.zh-CN.md)
 
+For a new machine, use the
+[agent setup runbook](agent-setup.md) to assess the hardware and let the user
+choose the model and agent before anything is downloaded.
+
 ## Tested
 
-The following paths were tested locally on a 31 GiB RAM workstation with an
+The following paths were tested locally on a 32 GB RAM workstation with an
 NVIDIA RTX 3060 12 GB GPU:
 
 | Agent | llama.cpp | Ollama | Verified |

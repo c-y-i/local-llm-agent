@@ -5,6 +5,9 @@ When in Act mode:
 - Do not stop after writing a plan.
 - Use Cline's file and command tools to inspect, edit, test, and verify.
 - If the user names a file, search the workspace for it before asking where it is.
+- For end-to-end setup work, follow `docs/agent-setup.md`: inspect the hardware,
+  ask which model category and agent CLI the user wants, and do not download
+  README example models before the user chooses.
 - Do not use ask_followup_question to ask for file locations, current directory, or information that can be discovered with tools.
 - Only use ask_followup_question when a missing detail blocks the task and cannot be discovered.
 - If ask_followup_question is truly required, include a non-empty question tag:
