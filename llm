@@ -535,8 +535,8 @@ def _served_context_window(env: dict[str, str], backend: str) -> int | None:
 
 def _hermes_context_pins(config_path: Path) -> dict[str, int]:
     try:
-        lines = config_path.read_text().splitlines()
-    except OSError:
+        lines = config_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
         return {}
 
     in_model = False

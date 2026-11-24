@@ -127,6 +127,16 @@ class TestWindowsSupport(unittest.TestCase):
         self.assertEqual(result, 3)
         self.assertIn("Hermes Agent CLI is not installed", stderr.getvalue())
 
+    def test_hermes_context_config_is_read_as_utf8(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "config.yaml"
+            config.write_text(
+                "model:\n  context_length: 65536\n  description: 模型\n",
+                encoding="utf-8",
+            )
+            pins = llm_cli._hermes_context_pins(config)
+        self.assertEqual(pins, {"context_length": 65536})
+
     def test_cmd_agent_checks_missing_cli_before_starting_model(self):
         stderr = io.StringIO()
         args = unittest.mock.Mock(agent="hermes")
