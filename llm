@@ -232,15 +232,19 @@ def _find_llama_server(
     return None
 
 
-def _llama_chat_template(model: str, env: dict[str, str]) -> str | None:
+def _llama_chat_template_args(
+    model: str, env: dict[str, str]
+) -> list[str]:
     if "CHAT_TEMPLATE" in env:
-        return env["CHAT_TEMPLATE"] or None
+        template = env["CHAT_TEMPLATE"]
+        return ["--chat-template", template] if template else []
     normalized = model.lower()
-    if "qwen3.5-14b" in normalized:
-        return None
+    qwen35_template = REPO_ROOT / "scripts/common/qwen3.5-codex.jinja"
+    if "qwen3.5" in normalized and qwen35_template.is_file():
+        return ["--chat-template-file", str(qwen35_template)]
     if "qwen" in normalized:
-        return "chatml"
-    return None
+        return ["--chat-template", "chatml"]
+    return []
 
 
 def _llama_server_command(
@@ -296,9 +300,14 @@ def _llama_server_command(
         command.append("--metrics")
     if env.get("JINJA", "1").lower() not in {"0", "false"}:
         command.append("--jinja")
-    template = _llama_chat_template(model, env)
-    if template:
-        command.extend(["--chat-template", template])
+    command.extend(_llama_chat_template_args(model, env))
+    reasoning_format = env.get("REASONING_FORMAT")
+    if not reasoning_format and (
+        "qwen3.5" in model.lower() or "deepseek-r1" in model.lower()
+    ):
+        reasoning_format = "deepseek"
+    if reasoning_format:
+        command.extend(["--reasoning-format", reasoning_format])
     command.extend(["--flash-attn", env.get("FLASH_ATTN", "auto")])
     cache_type = env.get("KV_CACHE_TYPE", "q8_0")
     command.extend(["--cache-type-k", cache_type, "--cache-type-v", cache_type])
@@ -1846,6 +1855,13 @@ def cmd_start(args: argparse.Namespace) -> int:
 def _launch_claude(
     env: dict[str, str], backend: str | None, model: str | None, extra: list[str]
 ) -> int:
+    if not shutil.which("claude", path=env.get("PATH")):
+        print(
+            "error: Claude Code CLI is not installed. Install it with its "
+            "official installer, then run `llm doctor`.",
+            file=sys.stderr,
+        )
+        return 3
     try:
         backend = _select_backend(env, backend)
         base_url, token = _backend_connection(env, backend)
@@ -1926,6 +1942,13 @@ def _launch_codex(
     context: int,
     extra: list[str],
 ) -> int:
+    if not shutil.which("codex", path=env.get("PATH")):
+        print(
+            "error: Codex CLI is not installed. Install it with its official "
+            "installer, then run `llm doctor`.",
+            file=sys.stderr,
+        )
+        return 3
     try:
         backend = _select_backend(env, backend)
         base_url, token = _backend_connection(env, backend)
@@ -1954,6 +1977,14 @@ def _launch_hermes(
     model: str | None,
     extra: list[str],
 ) -> int:
+    if not shutil.which("hermes", path=env.get("PATH")):
+        print(
+            "error: Hermes Agent CLI is not installed. Install it with:\n"
+            "  irm https://hermes-agent.nousresearch.com/install.ps1 | iex\n"
+            "Then run `llm doctor`.",
+            file=sys.stderr,
+        )
+        return 3
     try:
         backend = _select_backend(env, backend)
         base_url, token = _backend_connection(env, backend)
@@ -1991,6 +2022,24 @@ def cmd_hermes(args: argparse.Namespace) -> int:
 
 def cmd_agent(args: argparse.Namespace) -> int:
     env = _configured_env()
+    if args.agent:
+        executable = {
+            "claude": "claude",
+            "codex": "codex",
+            "hermes": "hermes",
+        }[args.agent]
+        if not shutil.which(executable, path=env.get("PATH")):
+            hint = ""
+            if args.agent == "hermes":
+                hint = (
+                    "\n  irm https://hermes-agent.nousresearch.com/install.ps1 | iex"
+                )
+            print(
+                f"error: {AGENTS[args.agent]} CLI is not installed.{hint}\n"
+                "Install it, then run `llm doctor`.",
+                file=sys.stderr,
+            )
+            return 3
     status = _backend_status(env)
     active = _active_models(env, status)
     if not active:

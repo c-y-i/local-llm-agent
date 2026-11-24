@@ -26,6 +26,7 @@ class TestWindowsSupport(unittest.TestCase):
             "codex-local.cmd",
             "hermes-local.cmd",
             "scripts/common/env.ps1",
+            "scripts/common/qwen3.5-codex.jinja",
             "scripts/setup/install-llm.ps1",
             "scripts/setup/check-prereqs.ps1",
             "scripts/setup/build-llama-cpp.ps1",
@@ -65,8 +66,10 @@ class TestWindowsSupport(unittest.TestCase):
             )
         self.assertEqual(command[0], str(binary))
         self.assertEqual(command[1], "serve")
-        self.assertIn("--chat-template", command)
-        self.assertIn("chatml", command)
+        self.assertIn("--chat-template-file", command)
+        self.assertIn(str(ROOT / "scripts/common/qwen3.5-codex.jinja"), command)
+        self.assertIn("--reasoning-format", command)
+        self.assertIn("deepseek", command)
 
     def test_sampling_temperature_ignores_windows_temp_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -114,6 +117,28 @@ class TestWindowsSupport(unittest.TestCase):
             r'"C:\Users\test\claude.cmd"',
         ])
         self.assertEqual(command[-1], "--version")
+
+    def test_missing_hermes_cli_has_clear_error(self):
+        stderr = io.StringIO()
+        with patch.object(llm_cli.shutil, "which", return_value=None), patch(
+            "sys.stderr", stderr
+        ):
+            result = llm_cli._launch_hermes({}, "llama-cpp", "local-model", [])
+        self.assertEqual(result, 3)
+        self.assertIn("Hermes Agent CLI is not installed", stderr.getvalue())
+
+    def test_cmd_agent_checks_missing_cli_before_starting_model(self):
+        stderr = io.StringIO()
+        args = unittest.mock.Mock(agent="hermes")
+        with patch.object(llm_cli, "_configured_env", return_value={}), patch.object(
+            llm_cli.shutil, "which", return_value=None
+        ), patch.object(llm_cli, "_ensure_agent_model") as ensure_model, patch(
+            "sys.stderr", stderr
+        ):
+            result = llm_cli.cmd_agent(args)
+        self.assertEqual(result, 3)
+        ensure_model.assert_not_called()
+        self.assertIn("Hermes Agent CLI is not installed", stderr.getvalue())
 
     def test_foreground_server_tracks_and_clears_pid(self):
         with tempfile.TemporaryDirectory() as tmp:
