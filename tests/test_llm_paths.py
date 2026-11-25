@@ -245,7 +245,11 @@ class TestLLMCTL(unittest.TestCase):
                 "models": ["installed-a", "installed-b"],
             }
         }
-        with patch.object(llm_cli, "_configured_env", return_value={}):
+        with patch.object(
+            llm_cli, "_configured_env", return_value={}
+        ), patch.object(
+            llm_cli.shutil, "which", return_value="hermes"
+        ):
             result = llm_cli.cmd_agent(
                 SimpleNamespace(
                     agent="hermes",
